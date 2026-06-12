@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   StatusBar,
   TextInput,
   Keyboard,
-  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -71,55 +70,8 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<ViewMode>("hotel");
-  const [muted, setMuted] = useState(false);
-  const audioRef = useRef<any>(null);
-
   const { isFavorite, toggle } = useFavorites();
   const [searchFocused, setSearchFocused] = useState(false);
-
-  // Müzik: web'de fade-in ile otomatik başlar
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof window === "undefined") return;
-
-    const audio = new (window as any).Audio("/audio/ustour-song.mp3");
-    audio.loop = true;
-    audio.volume = 0;
-    audioRef.current = audio;
-
-    const fadeIn = () => {
-      let vol = 0;
-      const iv = setInterval(() => {
-        vol = Math.min(0.8, vol + 0.04);
-        audio.volume = vol;
-        if (vol >= 0.8) clearInterval(iv);
-      }, 100);
-    };
-
-    audio
-      .play()
-      .then(fadeIn)
-      .catch(() => {
-        // Tarayıcı autoplay'i engelledi — ilk etkileşimde başlat
-        const handler = () => {
-          audio.play().then(fadeIn).catch(() => {});
-        };
-        window.addEventListener("click", handler, { once: true });
-        window.addEventListener("touchstart", handler, { once: true });
-      });
-
-    return () => {
-      audio.pause();
-      audio.src = "";
-      audioRef.current = null;
-    };
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    if (!audioRef.current) return;
-    const newMuted = !muted;
-    audioRef.current.muted = newMuted;
-    setMuted(newMuted);
-  }, [muted]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr");
@@ -300,26 +252,20 @@ export default function Index() {
       {/* Logo + butonlar */}
       <View style={styles.header} testID="home-header">
         <View style={styles.logoRow}>
-          <View>
-            <Text style={styles.appName}>NaviGuide</Text>
-            <Text style={styles.appTagline}>
-              Sadece konumu değil, kendini bulduğun yer :)
-            </Text>
+          <View style={styles.brandWrap}>
+            <Image
+              source={require("../assets/images/ustour-logo.png")}
+              style={styles.logo}
+              contentFit="contain"
+            />
+            <View>
+              <Text style={styles.appName}>NaviGuide</Text>
+              <Text style={styles.appTagline}>
+                Sadece konumu değil, kendini bulduğun yer :)
+              </Text>
+            </View>
           </View>
           <View style={styles.headerActions}>
-            {Platform.OS === "web" && (
-              <Pressable
-                onPress={toggleMute}
-                style={styles.actionBtn}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name={muted ? "volume-mute-outline" : "volume-high-outline"}
-                  size={20}
-                  color="#FFFFFF"
-                />
-              </Pressable>
-            )}
             <Pressable
               onPress={() => router.push("/map")}
               hitSlop={8}
@@ -553,16 +499,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  brandWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  logo: {
+    width: 110,
+    height: 44,
+  },
   appName: {
     color: "#FFFFFF",
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: "800",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   appTagline: {
     color: "#CFE0F5",
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    marginTop: 1,
   },
   headerActions: {
     flexDirection: "row",
