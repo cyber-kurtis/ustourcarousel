@@ -6,6 +6,15 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  directory = "netlify/functions"
+
+# API requests go to the hotels function (must come before the SPA catch-all)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/hotels"
+  status = 200
+
 # Expo Router "single" output is a SPA — route all paths to index.html
 # so deep links like /hotel/123 don't 404 on refresh.
 [[redirects]]
