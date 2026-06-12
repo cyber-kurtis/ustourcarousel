@@ -252,19 +252,11 @@ export default function Index() {
       {/* Logo + butonlar */}
       <View style={styles.header} testID="home-header">
         <View style={styles.logoRow}>
-          <View style={styles.brandWrap}>
-            <Image
-              source={require("../assets/images/ustour-logo.png")}
-              style={styles.logo}
-              contentFit="contain"
-            />
-            <View>
-              <Text style={styles.appName}>NaviGuide</Text>
-              <Text style={styles.appTagline}>
-                Sadece konumu değil, kendini bulduğun yer :)
-              </Text>
-            </View>
-          </View>
+          <Image
+            source={require("../assets/images/ustour-logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
           <View style={styles.headerActions}>
             <Pressable
               onPress={() => router.push("/map")}
@@ -283,6 +275,10 @@ export default function Index() {
             </Pressable>
           </View>
         </View>
+        <Text style={styles.appName}>NaviGuide</Text>
+        <Text style={styles.appTagline}>
+          Sadece konumu değil, kendini bulduğun yer :)
+        </Text>
       </View>
 
       {/* Sekmeler */}
@@ -499,12 +495,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  brandWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
   logo: {
     width: 110,
     height: 44,
@@ -514,11 +504,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     letterSpacing: 0.4,
+    marginTop: 8,
   },
   appTagline: {
     color: "#CFE0F5",
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: 11,
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: "row",
