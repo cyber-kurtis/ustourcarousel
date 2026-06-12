@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   StatusBar,
   TextInput,
   Keyboard,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -44,7 +45,6 @@ type Suggestion = {
   icon: "bed-outline" | "restaurant-outline" | "location-outline";
 };
 
-// Adres içindeki cadde/sokak kelimeleri öneri olarak çıkmasın
 const LOCATION_STOPWORDS = new Set([
   "rruga", "bulevardi", "bulevar", "blv", "blvd", "boulevard", "avenue",
   "street", "ulica", "settlement", "kej", "str", "number", "palmira",
@@ -71,12 +71,56 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<ViewMode>("hotel");
+  const [muted, setMuted] = useState(false);
+  const audioRef = useRef<any>(null);
 
   const { isFavorite, toggle } = useFavorites();
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // Dropdown önerileri: sadece sorguyla BAŞLAYAN otel/restoran adları ve
-  // adreslerden çıkarılan şehir adları. Alakasız eşleşme çıkmaz.
+  // Müzik: web'de fade-in ile otomatik başlar
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const audio = new (window as any).Audio("/audio/ustour-song.mp3");
+    audio.loop = true;
+    audio.volume = 0;
+    audioRef.current = audio;
+
+    const fadeIn = () => {
+      let vol = 0;
+      const iv = setInterval(() => {
+        vol = Math.min(0.8, vol + 0.04);
+        audio.volume = vol;
+        if (vol >= 0.8) clearInterval(iv);
+      }, 100);
+    };
+
+    audio
+      .play()
+      .then(fadeIn)
+      .catch(() => {
+        // Tarayıcı autoplay'i engelledi — ilk etkileşimde başlat
+        const handler = () => {
+          audio.play().then(fadeIn).catch(() => {});
+        };
+        window.addEventListener("click", handler, { once: true });
+        window.addEventListener("touchstart", handler, { once: true });
+      });
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+    };
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!audioRef.current) return;
+    const newMuted = !muted;
+    audioRef.current.muted = newMuted;
+    setMuted(newMuted);
+  }, [muted]);
+
   const suggestions = useMemo<Suggestion[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     if (!q) return [];
@@ -143,7 +187,6 @@ export default function Index() {
       } else if (mode === "restaurant") {
         if (h.kind !== "restaurant") return false;
       } else {
-        // mode === "hotel" — default for items without kind too
         if (h.kind && h.kind !== "hotel") return false;
       }
       if (!q) return true;
@@ -154,8 +197,6 @@ export default function Index() {
     });
   }, [hotels, query, mode, isFavorite]);
 
-  // Ülke başlıklarıyla gruplu liste: ülkeler alfabetik (tr), her ülke içinde
-  // oteller ada göre alfabetik. Ülkesi olmayan kayıtlar "Diğer" altında en sonda.
   const listData = useMemo<Row[]>(() => {
     const groups = new Map<string, Hotel[]>();
     for (const h of filtered) {
@@ -256,86 +297,49 @@ export default function Index() {
 
   const Header = (
     <View style={styles.headerWrap}>
+      {/* Logo + butonlar */}
       <View style={styles.header} testID="home-header">
         <View style={styles.logoRow}>
-          <Image
-            source={require("../assets/images/ustour-logo.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <Pressable
-            testID="admin-link"
-            onPress={() => router.push("/admin")}
-            hitSlop={8}
-            style={styles.adminBtn}
-          >
-            <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-          </Pressable>
-        </View>
-        <Text style={styles.headerSubtitle}>Otelleri keşfet</Text>
-
-        <View style={styles.searchWrap}>
-          <View style={styles.searchBox} testID="search-box">
-            <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
-            <TextInput
-              testID="search-input"
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Otel veya konum ara..."
-              placeholderTextColor={COLORS.onSurfaceMuted}
-              style={styles.searchInput}
-              returnKeyType="search"
-              onSubmitEditing={Keyboard.dismiss}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-            />
-            {query.length > 0 && (
+          <View>
+            <Text style={styles.appName}>NaviGuide</Text>
+            <Text style={styles.appTagline}>
+              Sadece konumu değil, kendini bulduğun yer :)
+            </Text>
+          </View>
+          <View style={styles.headerActions}>
+            {Platform.OS === "web" && (
               <Pressable
-                testID="search-clear"
-                onPress={() => setQuery("")}
+                onPress={toggleMute}
+                style={styles.actionBtn}
                 hitSlop={8}
               >
                 <Ionicons
-                  name="close-circle"
-                  size={18}
-                  color={COLORS.onSurfaceMuted}
+                  name={muted ? "volume-mute-outline" : "volume-high-outline"}
+                  size={20}
+                  color="#FFFFFF"
                 />
               </Pressable>
             )}
+            <Pressable
+              onPress={() => router.push("/map")}
+              hitSlop={8}
+              style={styles.actionBtn}
+            >
+              <Ionicons name="map-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              testID="admin-link"
+              onPress={() => router.push("/admin")}
+              hitSlop={8}
+              style={styles.actionBtn}
+            >
+              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+            </Pressable>
           </View>
-
-          {searchFocused && suggestions.length > 0 && (
-            <View style={styles.suggestBox} testID="search-suggestions">
-              {suggestions.map((s) => (
-                <Pressable
-                  key={`${s.icon}-${s.label}`}
-                  style={({ pressed }) => [
-                    styles.suggestRow,
-                    pressed && styles.suggestRowPressed,
-                  ]}
-                  onPress={() => {
-                    setQuery(s.label);
-                    Keyboard.dismiss();
-                  }}
-                >
-                  <Ionicons
-                    name={s.icon}
-                    size={16}
-                    color={COLORS.onSurfaceMuted}
-                  />
-                  <Text style={styles.suggestText} numberOfLines={1}>
-                    <Text style={styles.suggestMatch}>
-                      {s.label.slice(0, query.trim().length)}
-                    </Text>
-                    {s.label.slice(query.trim().length)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
         </View>
       </View>
 
+      {/* Sekmeler */}
       <View style={styles.chipsRow}>
         <Chip
           testID="chip-hotels"
@@ -358,6 +362,68 @@ export default function Index() {
           active={mode === "favorites"}
           onPress={() => setMode("favorites")}
         />
+      </View>
+
+      {/* Arama kutusu — sekmelerin altında */}
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBox} testID="search-box">
+          <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
+          <TextInput
+            testID="search-input"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Otel veya konum ara..."
+            placeholderTextColor={COLORS.onSurfaceMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            onSubmitEditing={Keyboard.dismiss}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+          />
+          {query.length > 0 && (
+            <Pressable
+              testID="search-clear"
+              onPress={() => setQuery("")}
+              hitSlop={8}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={COLORS.onSurfaceMuted}
+              />
+            </Pressable>
+          )}
+        </View>
+
+        {searchFocused && suggestions.length > 0 && (
+          <View style={styles.suggestBox} testID="search-suggestions">
+            {suggestions.map((s) => (
+              <Pressable
+                key={`${s.icon}-${s.label}`}
+                style={({ pressed }) => [
+                  styles.suggestRow,
+                  pressed && styles.suggestRowPressed,
+                ]}
+                onPress={() => {
+                  setQuery(s.label);
+                  Keyboard.dismiss();
+                }}
+              >
+                <Ionicons
+                  name={s.icon}
+                  size={16}
+                  color={COLORS.onSurfaceMuted}
+                />
+                <Text style={styles.suggestText} numberOfLines={1}>
+                  <Text style={styles.suggestMatch}>
+                    {s.label.slice(0, query.trim().length)}
+                  </Text>
+                  {s.label.slice(query.trim().length)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -447,7 +513,6 @@ function Chip({
   label,
   active,
   onPress,
-  icon,
   testID,
 }: {
   label: string;
@@ -462,14 +527,6 @@ function Chip({
       onPress={onPress}
       style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
     >
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={14}
-          color={active ? "#FFFFFF" : COLORS.brandPrimary}
-          style={{ marginRight: 6 }}
-        />
-      )}
       <Text
         style={[
           styles.chipText,
@@ -489,18 +546,30 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.brandPrimary,
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  logo: {
-    width: 140,
-    height: 56,
+  appName: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
-  adminBtn: {
+  appTagline: {
+    color: "#CFE0F5",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -508,10 +577,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
-  headerSubtitle: { color: "#CFE0F5", fontSize: 13, marginTop: 2 },
+  chipsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 8,
+    backgroundColor: COLORS.brandPrimary,
+  },
+  chip: {
+    height: 36,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  chipActive: { backgroundColor: "#FF6600" },
+  chipInactive: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.5)",
+  },
+  chipText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  chipTextActive: { color: "#FFFFFF" },
+  chipTextInactive: { color: "#FFFFFF" },
   searchWrap: {
-    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: COLORS.brandPrimary,
     zIndex: 100,
   },
   searchBox: {
@@ -532,8 +625,8 @@ const styles = StyleSheet.create({
   suggestBox: {
     position: "absolute",
     top: 48,
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingVertical: 4,
@@ -563,31 +656,6 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
     fontWeight: "700",
   },
-  chipsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
-    backgroundColor: COLORS.brandPrimary,
-  },
-  chip: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  chipActive: { backgroundColor: "#FFFFFF" },
-  chipInactive: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
-  },
-  chipText: { fontSize: 13, fontWeight: "600" },
-  chipTextActive: { color: COLORS.brandPrimary },
-  chipTextInactive: { color: "#FFFFFF" },
   listContent: {
     backgroundColor: COLORS.surface,
     paddingBottom: 32,
@@ -640,14 +708,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // yapışık — flush to image
   cardTextBox: {
     backgroundColor: COLORS.surfaceSecondary,
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: "center",
   },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.onSurface, flexShrink: 1, textAlign: "center" },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.onSurface,
+    flexShrink: 1,
+    textAlign: "center",
+  },
   cardTitleRow: {
     flexDirection: "row",
     alignItems: "center",
