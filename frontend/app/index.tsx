@@ -58,6 +58,15 @@ export default function Index() {
 
   const { isFavorite, toggle } = useFavorites();
 
+  const suggestion = useMemo(() => {
+    if (!query) return "";
+    const q = query.trim().toLocaleLowerCase("tr");
+    const match = hotels.find((h) =>
+      h.name.toLocaleLowerCase("tr").startsWith(q)
+    );
+    return match ? match.name : "";
+  }, [query, hotels]);
+
   const fetchHotels = useCallback(async () => {
     try {
       setError(null);
@@ -84,7 +93,7 @@ export default function Index() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
-    return hotels.filter((h) => {
+    let results = hotels.filter((h) => {
       if (mode === "favorites") {
         if (!isFavorite(h.id)) return false;
       } else if (mode === "restaurant") {
@@ -99,6 +108,16 @@ export default function Index() {
         h.location.toLocaleLowerCase("tr").includes(q)
       );
     });
+    // Sort by country alphabetically, then by name
+    results.sort((a, b) => {
+      const countryA = a.country || "";
+      const countryB = b.country || "";
+      if (countryA !== countryB) {
+        return countryA.localeCompare(countryB, "tr");
+      }
+      return a.name.localeCompare(b.name, "tr");
+    });
+    return results;
   }, [hotels, query, mode, isFavorite]);
 
   const renderHotel = ({ item }: { item: Hotel }) => {
@@ -180,16 +199,23 @@ export default function Index() {
 
         <View style={styles.searchBox} testID="search-box">
           <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
-          <TextInput
-            testID="search-input"
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Otel veya konum ara..."
-            placeholderTextColor={COLORS.onSurfaceMuted}
-            style={styles.searchInput}
-            returnKeyType="search"
-            onSubmitEditing={Keyboard.dismiss}
-          />
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              testID="search-input"
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Otel veya konum ara..."
+              placeholderTextColor={COLORS.onSurfaceMuted}
+              style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+            {suggestion && query && (
+              <Text style={styles.searchSuggestion}>
+                {suggestion.slice(query.length)}
+              </Text>
+            )}
+          </View>
           {query.length > 0 && (
             <Pressable
               testID="search-clear"
@@ -390,10 +416,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  searchInputContainer: {
+    flex: 1,
+    position: "relative",
+  },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: COLORS.onSurface,
+    paddingVertical: 0,
+    backgroundColor: "transparent",
+  },
+  searchSuggestion: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    fontSize: 15,
+    color: COLORS.onSurfaceMuted,
+    opacity: 0.5,
     paddingVertical: 0,
   },
   chipsRow: {
@@ -456,13 +496,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceSecondary,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    alignItems: "center",
   },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.onSurface, flexShrink: 1 },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.onSurface, flexShrink: 1, textAlign: "center" },
   cardTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 8,
+    width: "100%",
   },
   countryBadge: {
     backgroundColor: COLORS.brandTertiary,
