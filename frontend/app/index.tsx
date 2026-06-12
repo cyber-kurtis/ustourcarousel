@@ -35,6 +35,22 @@ type Hotel = {
 
 type ViewMode = "hotel" | "restaurant" | "favorites";
 
+type Row =
+  | { type: "header"; key: string; country: string; count: number }
+  | { type: "hotel"; key: string; hotel: Hotel };
+
+type Suggestion = {
+  label: string;
+  icon: "bed-outline" | "restaurant-outline" | "location-outline";
+};
+
+// Adres içindeki cadde/sokak kelimeleri öneri olarak çıkmasın
+const LOCATION_STOPWORDS = new Set([
+  "rruga", "bulevardi", "bulevar", "blv", "blvd", "boulevard", "avenue",
+  "street", "ulica", "settlement", "kej", "str", "number", "palmira",
+  "kralja", "majke", "via",
+]);
+
 const COLORS = {
   surface: "#F2F2F7",
   surfaceSecondary: "#FFFFFF",
@@ -57,14 +73,42 @@ export default function Index() {
   const [mode, setMode] = useState<ViewMode>("hotel");
 
   const { isFavorite, toggle } = useFavorites();
+  const [searchFocused, setSearchFocused] = useState(false);
 
-  const suggestion = useMemo(() => {
-    if (!query) return "";
+  // Dropdown önerileri: sadece sorguyla BAŞLAYAN otel/restoran adları ve
+  // adreslerden çıkarılan şehir adları. Alakasız eşleşme çıkmaz.
+  const suggestions = useMemo<Suggestion[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr");
-    const match = hotels.find((h) =>
-      h.name.toLocaleLowerCase("tr").startsWith(q)
-    );
-    return match ? match.name : "";
+    if (!q) return [];
+    const seen = new Set<string>();
+    const out: Suggestion[] = [];
+
+    for (const h of hotels) {
+      const name = h.name.trim();
+      const lower = name.toLocaleLowerCase("tr");
+      if (lower.startsWith(q) && lower !== q && !seen.has(lower)) {
+        seen.add(lower);
+        out.push({
+          label: name,
+          icon: h.kind === "restaurant" ? "restaurant-outline" : "bed-outline",
+        });
+      }
+    }
+
+    for (const h of hotels) {
+      for (const raw of (h.location ?? "").split(/[\s,./]+/)) {
+        const word = raw.replace(/[^\p{L}]/gu, "");
+        if (word.length < 3) continue;
+        const lower = word.toLocaleLowerCase("tr");
+        if (LOCATION_STOPWORDS.has(lower)) continue;
+        if (lower.startsWith(q) && lower !== q && !seen.has(lower)) {
+          seen.add(lower);
+          out.push({ label: word, icon: "location-outline" });
+        }
+      }
+    }
+
+    return out.slice(0, 5);
   }, [query, hotels]);
 
   const fetchHotels = useCallback(async () => {
@@ -93,7 +137,7 @@ export default function Index() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
-    let results = hotels.filter((h) => {
+    return hotels.filter((h) => {
       if (mode === "favorites") {
         if (!isFavorite(h.id)) return false;
       } else if (mode === "restaurant") {
@@ -108,19 +152,52 @@ export default function Index() {
         h.location.toLocaleLowerCase("tr").includes(q)
       );
     });
-    // Sort by country alphabetically, then by name
-    results.sort((a, b) => {
-      const countryA = a.country || "";
-      const countryB = b.country || "";
-      if (countryA !== countryB) {
-        return countryA.localeCompare(countryB, "tr");
-      }
-      return a.name.localeCompare(b.name, "tr");
-    });
-    return results;
   }, [hotels, query, mode, isFavorite]);
 
-  const renderHotel = ({ item }: { item: Hotel }) => {
+  // Ülke başlıklarıyla gruplu liste: ülkeler alfabetik (tr), her ülke içinde
+  // oteller ada göre alfabetik. Ülkesi olmayan kayıtlar "Diğer" altında en sonda.
+  const listData = useMemo<Row[]>(() => {
+    const groups = new Map<string, Hotel[]>();
+    for (const h of filtered) {
+      const country = h.country?.trim() || "Diğer";
+      const group = groups.get(country);
+      if (group) group.push(h);
+      else groups.set(country, [h]);
+    }
+    const countries = [...groups.keys()].sort((a, b) => {
+      if (a === "Diğer") return 1;
+      if (b === "Diğer") return -1;
+      return a.localeCompare(b, "tr");
+    });
+    const rows: Row[] = [];
+    for (const country of countries) {
+      const items = groups
+        .get(country)!
+        .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      rows.push({
+        type: "header",
+        key: `country-${country}`,
+        country,
+        count: items.length,
+      });
+      for (const hotel of items) {
+        rows.push({ type: "hotel", key: hotel.id, hotel });
+      }
+    }
+    return rows;
+  }, [filtered]);
+
+  const renderRow = ({ item: row }: { item: Row }) => {
+    if (row.type === "header") {
+      return (
+        <View style={styles.countryHeader} testID={`country-${row.country}`}>
+          <Ionicons name="earth" size={15} color={COLORS.brandSecondary} />
+          <Text style={styles.countryHeaderText}>{row.country}</Text>
+          <Text style={styles.countryHeaderCount}>{row.count}</Text>
+        </View>
+      );
+    }
+    const item = row.hotel;
     const fav = isFavorite(item.id);
     return (
       <Pressable
@@ -197,9 +274,9 @@ export default function Index() {
         </View>
         <Text style={styles.headerSubtitle}>Otelleri keşfet</Text>
 
-        <View style={styles.searchBox} testID="search-box">
-          <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
-          <View style={styles.searchInputContainer}>
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBox} testID="search-box">
+            <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
             <TextInput
               testID="search-input"
               value={query}
@@ -209,25 +286,52 @@ export default function Index() {
               style={styles.searchInput}
               returnKeyType="search"
               onSubmitEditing={Keyboard.dismiss}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
             />
-            {suggestion && query && (
-              <Text style={styles.searchSuggestion}>
-                {suggestion.slice(query.length)}
-              </Text>
+            {query.length > 0 && (
+              <Pressable
+                testID="search-clear"
+                onPress={() => setQuery("")}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={COLORS.onSurfaceMuted}
+                />
+              </Pressable>
             )}
           </View>
-          {query.length > 0 && (
-            <Pressable
-              testID="search-clear"
-              onPress={() => setQuery("")}
-              hitSlop={8}
-            >
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={COLORS.onSurfaceMuted}
-              />
-            </Pressable>
+
+          {searchFocused && suggestions.length > 0 && (
+            <View style={styles.suggestBox} testID="search-suggestions">
+              {suggestions.map((s) => (
+                <Pressable
+                  key={`${s.icon}-${s.label}`}
+                  style={({ pressed }) => [
+                    styles.suggestRow,
+                    pressed && styles.suggestRowPressed,
+                  ]}
+                  onPress={() => {
+                    setQuery(s.label);
+                    Keyboard.dismiss();
+                  }}
+                >
+                  <Ionicons
+                    name={s.icon}
+                    size={16}
+                    color={COLORS.onSurfaceMuted}
+                  />
+                  <Text style={styles.suggestText} numberOfLines={1}>
+                    <Text style={styles.suggestMatch}>
+                      {s.label.slice(0, query.trim().length)}
+                    </Text>
+                    {s.label.slice(query.trim().length)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           )}
         </View>
       </View>
@@ -290,9 +394,9 @@ export default function Index() {
         </>
       ) : (
         <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={renderHotel}
+          data={listData}
+          keyExtractor={(item) => item.key}
+          renderItem={renderRow}
           ListHeaderComponent={Header}
           stickyHeaderIndices={[0]}
           contentContainerStyle={styles.listContent}
@@ -380,7 +484,7 @@ function Chip({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.brandPrimary },
-  headerWrap: { backgroundColor: COLORS.brandPrimary },
+  headerWrap: { backgroundColor: COLORS.brandPrimary, zIndex: 10 },
   header: {
     backgroundColor: COLORS.brandPrimary,
     paddingHorizontal: 16,
@@ -406,8 +510,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
   headerSubtitle: { color: "#CFE0F5", fontSize: 13, marginTop: 2 },
-  searchBox: {
+  searchWrap: {
     marginTop: 16,
+    zIndex: 100,
+  },
+  searchBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -416,25 +523,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  searchInputContainer: {
-    flex: 1,
-    position: "relative",
-  },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: COLORS.onSurface,
     paddingVertical: 0,
-    backgroundColor: "transparent",
   },
-  searchSuggestion: {
+  suggestBox: {
     position: "absolute",
+    top: 48,
     left: 0,
-    top: 0,
+    right: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
+    zIndex: 100,
+  },
+  suggestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  suggestRowPressed: {
+    backgroundColor: COLORS.brandTertiary,
+  },
+  suggestText: {
+    flex: 1,
     fontSize: 15,
     color: COLORS.onSurfaceMuted,
-    opacity: 0.5,
-    paddingVertical: 0,
+  },
+  suggestMatch: {
+    color: COLORS.onSurface,
+    fontWeight: "700",
   },
   chipsRow: {
     flexDirection: "row",
@@ -465,6 +592,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     paddingBottom: 32,
     flexGrow: 1,
+  },
+  countryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  countryHeaderText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+  },
+  countryHeaderCount: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.onSurfaceMuted,
+    backgroundColor: COLORS.border,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 999,
+    overflow: "hidden",
   },
   card: {
     backgroundColor: COLORS.surfaceSecondary,
