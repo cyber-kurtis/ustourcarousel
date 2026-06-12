@@ -16,6 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
+import { useFavorites } from "@/src/hooks/use-favorites";
+
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 type Hotel = {
@@ -45,6 +47,7 @@ export default function HotelDetail() {
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isFavorite, toggle } = useFavorites();
 
   useEffect(() => {
     const load = async () => {
@@ -143,6 +146,18 @@ export default function HotelDetail() {
               hitSlop={8}
             >
               <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              style={styles.backBtn}
+              onPress={() => hotel && toggle(hotel.id)}
+              testID="detail-fav-button"
+              hitSlop={8}
+            >
+              <Ionicons
+                name={hotel && isFavorite(hotel.id) ? "heart" : "heart-outline"}
+                size={22}
+                color={hotel && isFavorite(hotel.id) ? "#FF3B30" : "#FFFFFF"}
+              />
             </Pressable>
           </SafeAreaView>
         </View>
@@ -251,6 +266,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   backBtn: {
     width: 40,
