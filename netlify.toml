@@ -1,0 +1,14 @@
+[build]
+  base = "frontend"
+  command = "yarn install && npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Expo Router "single" output is a SPA — route all paths to index.html
+# so deep links like /hotel/123 don't 404 on refresh.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
