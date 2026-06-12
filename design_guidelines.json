@@ -1,0 +1,130 @@
+{
+  "app_name": "Booking Directory",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A structured, highly readable, utility-driven directory focusing on clear imagery and intuitive actions.",
+  "color": {
+    "surface": "#F2F2F7",
+    "onSurface": "#1C1C1E",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1C1C1E",
+    "surfaceTertiary": "#E5E5EA",
+    "onSurfaceTertiary": "#1C1C1E",
+    "surfaceInverse": "#1C1C1E",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#003580",
+    "brandPrimary": "#003580",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#0071C2",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E6F0F9",
+    "onBrandTertiary": "#003580",
+    "success": "#34C759",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FF9500",
+    "onWarning": "#FFFFFF",
+    "error": "#FF3B30",
+    "onError": "#FFFFFF",
+    "info": "#007AFF",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E5EA",
+    "borderStrong": "#C7C7CC",
+    "divider": "#E5E5EA"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous outer padding (lg/xl) with tight coupling inside cards (gap: 0 between image and text area per constraints).",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "stack_only",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Use blur on the sticky header of the detail screen when scrolling.",
+      "Use blur on the back button container if placed over the hero image."
+    ],
+    "dont's": [
+      "Do not use blur on hotel cards or list items."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Ana Sayfa",
+      "purpose": "A vertical scrolling list of hotels functioning purely as a directory.",
+      "states": {
+        "loading": "Centered spinner matching brandPrimary color.",
+        "empty": "Illustration with 'Henüz otel bulunmuyor.' message.",
+        "error": "Error message with 'Tekrar Dene' button."
+      },
+      "layout": "Vertical list (FlatList). Card Layout: A single parent container with overflow: 'hidden' and borderRadius: 'md'. Inside the card: Top element is an Image (width: '100%', height: 200). Bottom element is a View (backgroundColor: 'surfaceSecondary', padding: 'lg') containing the Hotel Name text. CRITICAL constraint: No margin or gap between the image and the text area. They must be flush and strictly attached ('yapışık'). Background of the screen is 'surface' (#F2F2F7) so the white cards pop. Use shadow tier 1 on the cards."
+    },
+    {
+      "name": "Otel Detayı",
+      "purpose": "Show the hotel hero image and provide 3 prominent contact action buttons.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "N/A",
+        "error": "Error message."
+      },
+      "layout": "Scrollable page. Top section: Hero Image (height: 300) with a gradient scrim at the top for the Back button readability. Middle section: Hotel Name in large typography ('2xl') with padding 'lg'. Bottom section: A vertical stack of 3 large, full-width touchable buttons (Konum, Telefon, E-posta). Each button should have a solid 'brandTertiary' background, 'onBrandTertiary' text, a leading icon, a tall hit area (height: 56pt), and 'md' border radius. Ensure the buttons use Linking API correctly (Google Maps intent, tel:, mailto:)."
+    }
+  ],
+  "images": {
+    "hotel_exterior_1": {
+      "url": "https://images.unsplash.com/photo-1723465308831-29da05e011f3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMGV4dGVyaW9yJTIwYnVpbGRpbmd8ZW58MHx8fHwxNzgxMjI4ODU2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "A large hotel building with blue shutters"
+    },
+    "hotel_exterior_2": {
+      "url": "https://images.unsplash.com/photo-1771293549382-62829fad8f2d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwzfHxsdXh1cnklMjBob3RlbCUyMGV4dGVyaW9yJTIwYnVpbGRpbmd8ZW58MHx8fHwxNzgxMjI4ODU2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern building with balconies"
+    },
+    "hotel_room_1": {
+      "url": "https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob3RlbCUyMHJvb20lMjBpbnRlcmlvcnxlbnwwfHx8fDE3ODEyMjg4NTZ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern hotel room with white bed"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build the UI entirely in Turkish as requested.",
+    "Implement the hotel cards precisely with NO gap between the image and the text box. The text box must be flush against the bottom of the image inside an overflow-hidden card to satisfy the 'kutuya yapışık, taşmayacak' constraint.",
+    "Do NOT include any booking logic, date pickers, or pricing. This is strictly an information directory.",
+    "Use the exact Booking.com colors provided (#003580 and #0071C2) as the brand colors. Do not replace them with generic grays.",
+    "For the 3 large action buttons in the Detail screen (Konum, Telefon, E-posta), implement `Linking.openURL` handlers. For location, map to a Google Maps search URL (e.g., `https://www.google.com/maps/search/?api=1&query=Otel+Ismi`).",
+    "Keep typography scalable and weight max capped at 500.",
+    "Make the 3 action buttons chunky and easy to tap (min 56pt height), using brandTertiary (#E6F0F9) background and brandPrimary (#003580) icon/text for strong visual clarity."
+  ]
+}
