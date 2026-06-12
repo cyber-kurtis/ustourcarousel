@@ -100,3 +100,4 @@ export default async (req) => {
     return json({ detail: `Sunucu hatası: ${e.message}` }, 500);
   }
 };
+
