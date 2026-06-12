@@ -33,6 +33,7 @@ class Hotel(BaseModel):
     email: str = ""
     website: str = ""
     country: str = ""
+    kind: str = "hotel"  # "hotel" | "restaurant"
     description: Optional[str] = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -45,7 +46,20 @@ class HotelCreate(BaseModel):
     email: str = ""
     website: str = ""
     country: str = ""
+    kind: str = "hotel"
     description: Optional[str] = ""
+
+
+class HotelUpdate(BaseModel):
+    name: Optional[str] = None
+    image_url: Optional[str] = None
+    location: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    country: Optional[str] = None
+    kind: Optional[str] = None
+    description: Optional[str] = None
 
 
 # ---------------------- Routes ----------------------
@@ -73,6 +87,26 @@ async def create_hotel(payload: HotelCreate):
     hotel = Hotel(**payload.dict())
     await db.hotels.insert_one(hotel.dict())
     return hotel
+
+
+@api_router.put("/hotels/{hotel_id}", response_model=Hotel)
+async def update_hotel(hotel_id: str, payload: HotelUpdate):
+    updates = {k: v for k, v in payload.dict().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Güncellenecek alan yok")
+    result = await db.hotels.update_one({"id": hotel_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Otel bulunamadı")
+    doc = await db.hotels.find_one({"id": hotel_id}, {"_id": 0})
+    return Hotel(**doc)
+
+
+@api_router.delete("/hotels/{hotel_id}")
+async def delete_hotel(hotel_id: str):
+    result = await db.hotels.delete_one({"id": hotel_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Otel bulunamadı")
+    return {"ok": True}
 
 
 # ---------------------- Seed ----------------------
@@ -163,7 +197,9 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def seed_hotels():
-    # Seed only if collection is empty AND no manual import has been done yet.
+    # Backfill missing `kind` on existing docs.
+    await db.hotels.update_many({"kind": {"$exists": False}}, {"$set": {"kind": "hotel"}})
+
     count = await db.hotels.count_documents({})
     if count == 0:
         docs = [Hotel(**h).dict() for h in SEED_HOTELS]

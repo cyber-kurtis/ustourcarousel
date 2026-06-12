@@ -29,8 +29,11 @@ type Hotel = {
   email: string;
   website?: string;
   country?: string;
+  kind?: "hotel" | "restaurant";
   description?: string;
 };
+
+type ViewMode = "hotel" | "restaurant" | "favorites";
 
 const COLORS = {
   surface: "#F2F2F7",
@@ -51,7 +54,7 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [mode, setMode] = useState<ViewMode>("hotel");
 
   const { isFavorite, toggle } = useFavorites();
 
@@ -82,14 +85,21 @@ export default function Index() {
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     return hotels.filter((h) => {
-      if (onlyFavorites && !isFavorite(h.id)) return false;
+      if (mode === "favorites") {
+        if (!isFavorite(h.id)) return false;
+      } else if (mode === "restaurant") {
+        if (h.kind !== "restaurant") return false;
+      } else {
+        // mode === "hotel" — default for items without kind too
+        if (h.kind && h.kind !== "hotel") return false;
+      }
       if (!q) return true;
       return (
         h.name.toLocaleLowerCase("tr").includes(q) ||
         h.location.toLocaleLowerCase("tr").includes(q)
       );
     });
-  }, [hotels, query, onlyFavorites, isFavorite]);
+  }, [hotels, query, mode, isFavorite]);
 
   const renderHotel = ({ item }: { item: Hotel }) => {
     const fav = isFavorite(item.id);
@@ -157,6 +167,14 @@ export default function Index() {
             style={styles.logo}
             contentFit="contain"
           />
+          <Pressable
+            testID="admin-link"
+            onPress={() => router.push("/admin")}
+            hitSlop={8}
+            style={styles.adminBtn}
+          >
+            <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+          </Pressable>
         </View>
         <Text style={styles.headerSubtitle}>Otelleri keşfet</Text>
 
@@ -190,17 +208,25 @@ export default function Index() {
 
       <View style={styles.chipsRow}>
         <Chip
-          testID="chip-all"
-          label="Tümü"
-          active={!onlyFavorites}
-          onPress={() => setOnlyFavorites(false)}
+          testID="chip-hotels"
+          label="Oteller"
+          icon="bed-outline"
+          active={mode === "hotel"}
+          onPress={() => setMode("hotel")}
+        />
+        <Chip
+          testID="chip-restaurants"
+          label="Restoranlar"
+          icon="restaurant-outline"
+          active={mode === "restaurant"}
+          onPress={() => setMode("restaurant")}
         />
         <Chip
           testID="chip-favorites"
           label="Favoriler"
           icon="heart"
-          active={onlyFavorites}
-          onPress={() => setOnlyFavorites(true)}
+          active={mode === "favorites"}
+          onPress={() => setMode("favorites")}
         />
       </View>
     </View>
@@ -257,13 +283,23 @@ export default function Index() {
           ListEmptyComponent={
             <View style={styles.center} testID="home-empty">
               <Ionicons
-                name={onlyFavorites ? "heart-outline" : "bed-outline"}
+                name={
+                  mode === "favorites"
+                    ? "heart-outline"
+                    : mode === "restaurant"
+                    ? "restaurant-outline"
+                    : "bed-outline"
+                }
                 size={48}
                 color={COLORS.brandPrimary}
               />
               <Text style={styles.emptyText}>
-                {onlyFavorites
-                  ? "Henüz favori otelin yok."
+                {mode === "favorites"
+                  ? "Henüz favorin yok."
+                  : mode === "restaurant"
+                  ? query
+                    ? "Sonuç bulunamadı."
+                    : "Henüz restoran eklenmedi."
                   : query
                   ? "Sonuç bulunamadı."
                   : "Henüz otel bulunmuyor."}
@@ -326,12 +362,21 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   logoRow: {
-    alignItems: "flex-start",
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   logo: {
     width: 140,
     height: 56,
+  },
+  adminBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
   headerSubtitle: { color: "#CFE0F5", fontSize: 13, marginTop: 2 },
