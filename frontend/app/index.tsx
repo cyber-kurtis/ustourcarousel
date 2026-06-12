@@ -27,6 +27,8 @@ type Hotel = {
   location: string;
   phone: string;
   email: string;
+  website?: string;
+  country?: string;
   description?: string;
 };
 
@@ -121,9 +123,16 @@ export default function Index() {
           </Pressable>
         </View>
         <View style={styles.cardTextBox} testID={`hotel-name-box-${item.id}`}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {item.country ? (
+              <View style={styles.countryBadge}>
+                <Text style={styles.countryBadgeText}>{item.country}</Text>
+              </View>
+            ) : null}
+          </View>
           <View style={styles.cardLocationRow}>
             <Ionicons
               name="location-outline"
@@ -142,7 +151,13 @@ export default function Index() {
   const Header = (
     <View style={styles.headerWrap}>
       <View style={styles.header} testID="home-header">
-        <Text style={styles.headerTitle}>Oteller</Text>
+        <View style={styles.logoRow}>
+          <Image
+            source={require("../assets/images/ustour-logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+        </View>
         <Text style={styles.headerSubtitle}>Otelleri keşfet</Text>
 
         <View style={styles.searchBox} testID="search-box">
@@ -307,11 +322,19 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: COLORS.brandPrimary,
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 16,
   },
+  logoRow: {
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  logo: {
+    width: 140,
+    height: 56,
+  },
   headerTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
-  headerSubtitle: { color: "#CFE0F5", fontSize: 14, marginTop: 4 },
+  headerSubtitle: { color: "#CFE0F5", fontSize: 13, marginTop: 2 },
   searchBox: {
     marginTop: 16,
     backgroundColor: "#FFFFFF",
@@ -371,7 +394,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardPressed: { opacity: 0.85 },
-  cardImage: { width: "100%", height: 200, backgroundColor: COLORS.border },
+  cardImage: { width: "100%", height: 160, backgroundColor: COLORS.border },
   favBtn: {
     position: "absolute",
     top: 12,
@@ -389,7 +412,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.onSurface },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: COLORS.onSurface, flexShrink: 1 },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  countryBadge: {
+    backgroundColor: COLORS.brandTertiary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  countryBadgeText: {
+    fontSize: 11,
+    color: COLORS.brandPrimary,
+    fontWeight: "600",
+  },
   cardLocationRow: {
     flexDirection: "row",
     alignItems: "center",

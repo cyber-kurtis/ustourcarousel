@@ -27,6 +27,8 @@ type Hotel = {
   location: string;
   phone: string;
   email: string;
+  website?: string;
+  country?: string;
   description?: string;
 };
 
@@ -84,6 +86,11 @@ export default function HotelDetail() {
   const sendMail = () => {
     if (!hotel) return;
     Linking.openURL(`mailto:${hotel.email}`);
+  };
+
+  const openWebsite = () => {
+    if (!hotel?.website) return;
+    Linking.openURL(hotel.website);
   };
 
   if (loading) {
@@ -187,13 +194,24 @@ export default function HotelDetail() {
               sub={hotel.phone}
               onPress={callPhone}
             />
-            <ActionButton
-              testID="action-email-button"
-              icon="mail"
-              label="E-posta"
-              sub={hotel.email}
-              onPress={sendMail}
-            />
+            {hotel.website ? (
+              <ActionButton
+                testID="action-website-button"
+                icon="globe-outline"
+                label="Web Sitesi"
+                sub={hotel.website}
+                onPress={openWebsite}
+              />
+            ) : null}
+            {hotel.email ? (
+              <ActionButton
+                testID="action-email-button"
+                icon="mail"
+                label="E-posta"
+                sub={hotel.email}
+                onPress={sendMail}
+              />
+            ) : null}
           </View>
         </View>
       </ScrollView>

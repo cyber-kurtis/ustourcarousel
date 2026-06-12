@@ -30,7 +30,9 @@ class Hotel(BaseModel):
     image_url: str
     location: str  # human-readable address
     phone: str
-    email: str
+    email: str = ""
+    website: str = ""
+    country: str = ""
     description: Optional[str] = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -40,7 +42,9 @@ class HotelCreate(BaseModel):
     image_url: str
     location: str
     phone: str
-    email: str
+    email: str = ""
+    website: str = ""
+    country: str = ""
     description: Optional[str] = ""
 
 
@@ -159,11 +163,12 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def seed_hotels():
+    # Seed only if collection is empty AND no manual import has been done yet.
     count = await db.hotels.count_documents({})
     if count == 0:
         docs = [Hotel(**h).dict() for h in SEED_HOTELS]
         await db.hotels.insert_many(docs)
-        logger.info(f"Seeded {len(docs)} hotels")
+        logger.info(f"Seeded {len(docs)} hotels (fallback)")
 
 
 @app.on_event("shutdown")
