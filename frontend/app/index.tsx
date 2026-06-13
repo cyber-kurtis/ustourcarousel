@@ -266,6 +266,19 @@ export default function Index() {
               <Ionicons name="map-outline" size={20} color="#FFFFFF" />
             </Pressable>
             <Pressable
+              testID="refresh-button"
+              onPress={() => { setRefreshing(true); fetchHotels(); }}
+              hitSlop={8}
+              style={styles.actionBtn}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
+              )}
+            </Pressable>
+            <Pressable
               testID="admin-link"
               onPress={() => router.push("/admin")}
               hitSlop={8}
