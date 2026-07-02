@@ -3,9 +3,9 @@ import { ScrollViewStyleReset } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 
 export default function Root({ children }: PropsWithChildren) {
-  const title = "UStour — Otelleri Keşfet";
+  const title = "NaviGuide — Rehberin Yol Arkadaşı";
   const description =
-    "Balkanlar'daki anlaşmalı otelleri keşfet: Üsküp, Ohrid, Saraybosna, İşkodra ve daha fazlası. UStour — Welcome Home.";
+    "UStour rehberleri için tur asistanı: oteller, restoranlar, canlı sınır kapısı yoğunluğu, döviz çevirici ve hava durumu — hepsi tek uygulamada.";
   const url = "https://ustnaviguide.netlify.app/";
   const ogImage = "https://ustnaviguide.netlify.app/og-image.png";
 

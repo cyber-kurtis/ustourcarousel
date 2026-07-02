@@ -1,7 +1,7 @@
 {
   "name": "NaviGuide",
   "short_name": "NaviGuide",
-  "description": "Balkanlar'daki anlaşmalı otelleri keşfet",
+  "description": "UStour rehberleri için tur asistanı",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FF6600",

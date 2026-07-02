@@ -21,6 +21,7 @@ import { useFavorites } from "@/src/hooks/use-favorites";
 import { GuideCallout } from "@/src/components/guide-callout";
 import { AddToHome } from "@/src/components/add-to-home";
 import { BorderLiveButton } from "@/src/components/border-live-button";
+import { PresenceBeacon } from "@/src/components/presence-beacon";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -896,6 +897,9 @@ export default function Index() {
 
       {/* Açılışta "ana ekrana ekle" tarifi (sadece web tarayıcıda) */}
       <AddToHome />
+
+      {/* Çevrimiçi takip sinyali + ilk açılışta isim sorma */}
+      <PresenceBeacon />
     </SafeAreaView>
   );
 }

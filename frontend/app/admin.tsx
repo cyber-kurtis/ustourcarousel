@@ -119,6 +119,108 @@ export default function Admin() {
   return <AdminPanel onExit={() => router.back()} />;
 }
 
+// ── Çevrimiçi rehberler (iç güvenlik) ──
+type Guide = {
+  id: string;
+  name: string;
+  device: string;
+  first_seen: number;
+  last_seen: number;
+};
+
+const ONLINE_MS = 3 * 60 * 1000; // son 3 dk içinde sinyal = çevrimiçi
+
+function relTime(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return "az önce";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} dk önce`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} sa önce`;
+  return `${Math.floor(h / 24)} gün önce`;
+}
+
+function OnlineGuides() {
+  const [guides, setGuides] = useState<Guide[] | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [expanded, setExpanded] = useState(false);
+
+  const loadGuides = useCallback(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL ?? ""}/api/presence`);
+      const data = await res.json();
+      setGuides(data.guides ?? []);
+      setNow(data.now ?? Date.now());
+    } catch {
+      setGuides([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGuides();
+  }, [loadGuides]);
+
+  if (guides === null) return null;
+
+  const online = guides.filter((g) => now - g.last_seen < ONLINE_MS);
+  const shown = expanded ? guides : guides.slice(0, 5);
+
+  return (
+    <View style={styles.presenceCard}>
+      <View style={styles.presenceHead}>
+        <View style={styles.presenceTitleRow}>
+          <View style={styles.onlineDotBig} />
+          <Text style={styles.presenceTitle}>
+            Çevrimiçi: {online.length}
+          </Text>
+          <Text style={styles.presenceSub}>
+            · toplam {guides.length} cihaz
+          </Text>
+        </View>
+        <Pressable onPress={loadGuides} hitSlop={8}>
+          <Ionicons name="refresh-outline" size={18} color={COLORS.brandPrimary} />
+        </Pressable>
+      </View>
+
+      {shown.map((g) => {
+        const isOnline = now - g.last_seen < ONLINE_MS;
+        return (
+          <View key={g.id} style={styles.presenceRow}>
+            <View
+              style={[
+                styles.onlineDot,
+                { backgroundColor: isOnline ? COLORS.success : COLORS.border },
+              ]}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.presenceName} numberOfLines={1}>
+                {g.name || "İsimsiz rehber"}
+              </Text>
+              <Text style={styles.presenceDevice} numberOfLines={1}>
+                {g.device || "Bilinmeyen cihaz"}
+              </Text>
+            </View>
+            <Text style={styles.presenceTime}>
+              {isOnline ? "çevrimiçi" : relTime(now - g.last_seen)}
+            </Text>
+          </View>
+        );
+      })}
+
+      {guides.length > 5 && (
+        <Pressable onPress={() => setExpanded(!expanded)} style={styles.presenceMore}>
+          <Text style={styles.presenceMoreText}>
+            {expanded ? "Daha az göster" : `${guides.length - 5} cihaz daha…`}
+          </Text>
+        </Pressable>
+      )}
+      {guides.length === 0 && (
+        <Text style={styles.presenceEmpty}>Henüz sinyal alınmadı.</Text>
+      )}
+    </View>
+  );
+}
+
 function AdminPanel({ onExit }: { onExit: () => void }) {
   const [items, setItems] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +322,7 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
           data={items}
           keyExtractor={(it) => it.id}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={<OnlineGuides />}
           renderItem={({ item }) => (
             <View style={styles.row} testID={`admin-row-${item.id}`}>
               <Image
@@ -543,6 +646,81 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   listContent: { padding: 16, paddingBottom: 32 },
+  // ── Çevrimiçi rehberler ──
+  presenceCard: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  presenceHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  presenceTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  onlineDotBig: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.success,
+  },
+  presenceTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+  presenceSub: {
+    fontSize: 12,
+    color: COLORS.onSurfaceMuted,
+  },
+  presenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.surface,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  presenceName: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+  },
+  presenceDevice: {
+    fontSize: 11.5,
+    color: COLORS.onSurfaceMuted,
+    marginTop: 1,
+  },
+  presenceTime: {
+    fontSize: 11.5,
+    color: COLORS.onSurfaceMuted,
+    fontWeight: "600",
+  },
+  presenceMore: {
+    paddingTop: 8,
+    alignItems: "center",
+  },
+  presenceMoreText: {
+    fontSize: 12.5,
+    color: COLORS.brandSecondary,
+    fontWeight: "700",
+  },
+  presenceEmpty: {
+    fontSize: 12.5,
+    color: COLORS.onSurfaceMuted,
+    paddingVertical: 6,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",

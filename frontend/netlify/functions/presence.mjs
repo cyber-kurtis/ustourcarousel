@@ -1,0 +1,75 @@
+// Çevrimiçi rehber takibi (iç güvenlik).
+// Depo: Netlify Blobs "presence" store'u — harici veritabanı gerekmez.
+// POST: uygulama her ~60 sn'de bir {id, name, device} yollar (kalp atışı).
+// GET:  yönetim paneli listeyi çeker; "çevrimiçi" hesabı istemci tarafında
+//       last_seen'e göre yapılır (< 3 dk = çevrimiçi).
+
+import { getStore } from "@netlify/blobs";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      ...CORS,
+    },
+  });
+
+// 30 günden eski kayıtları listelerken temizle (depo şişmesin)
+const STALE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export default async (req) => {
+  if (req.method === "OPTIONS")
+    return new Response(null, { status: 204, headers: CORS });
+
+  const store = getStore("presence");
+
+  if (req.method === "POST") {
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return json({ detail: "Geçersiz istek" }, 400);
+    }
+    const id = String(body?.id ?? "").slice(0, 64);
+    if (!id) return json({ detail: "id gerekli" }, 400);
+
+    const existing = await store.get(id, { type: "json" }).catch(() => null);
+    await store.setJSON(id, {
+      name: String(body?.name ?? existing?.name ?? "").slice(0, 40),
+      device: String(body?.device ?? existing?.device ?? "").slice(0, 80),
+      first_seen: existing?.first_seen ?? Date.now(),
+      last_seen: Date.now(),
+    });
+    return json({ ok: true });
+  }
+
+  if (req.method === "GET") {
+    const { blobs } = await store.list();
+    const now = Date.now();
+    const rows = (
+      await Promise.all(
+        blobs.map(async (b) => {
+          const v = await store.get(b.key, { type: "json" }).catch(() => null);
+          if (!v) return null;
+          if (now - (v.last_seen ?? 0) > STALE_MS) {
+            store.delete(b.key).catch(() => {});
+            return null;
+          }
+          return { id: b.key, ...v };
+        })
+      )
+    ).filter(Boolean);
+    rows.sort((a, b) => (b.last_seen ?? 0) - (a.last_seen ?? 0));
+    return json({ now, guides: rows.slice(0, 100) });
+  }
+
+  return json({ detail: "Yöntem desteklenmiyor" }, 405);
+};

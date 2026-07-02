@@ -21,6 +21,12 @@
   to = "/.netlify/functions/borders"
   status = 200
 
+# Guide presence heartbeat + list (must come before the /api/* catch-all below)
+[[redirects]]
+  from = "/api/presence"
+  to = "/.netlify/functions/presence"
+  status = 200
+
 # API requests go to the hotels function (must come before the SPA catch-all)
 [[redirects]]
   from = "/api/*"
