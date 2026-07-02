@@ -35,7 +35,8 @@ export default async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { status: 204, headers: CORS });
 
-  const store = getStore("presence");
+  // strong: yazılan kayıt hemen okunabilsin (PAUSE anında etki etsin)
+  const store = getStore({ name: "presence", consistency: "strong" });
 
   // ── Kalp atışı ──
   if (req.method === "POST") {
