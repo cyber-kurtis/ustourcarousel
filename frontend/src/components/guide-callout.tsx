@@ -278,6 +278,11 @@ export function GuideCallout() {
                 text="12 şehir, bugün + 4 gün. Grubu sabah uyandırırken 'şemsiye alın' mı 'mont alın' mı diyeceğini buradan gör."
               />
               <Section
+                icon="flag-outline"
+                title="Sınırlar"
+                text="Üstteki bayrak ikonuna bas: turda kullandığımız sınır kapılarının iki yönlü bekleme süreleri sürücü bildirimlerinden canlı gelir. Mola planını kuyruğa göre yap."
+              />
+              <Section
                 icon="map-outline"
                 title="Konumlar (Harita)"
                 text="Sağ üstteki harita ikonu. Balkanlar'daki buluşma ve tur başlangıç noktaları pinli. Şehri bilmediğin yerde pine bas → 'Buraya Git' → telefonun Google Maps navigasyonu açılır. Şoföre yol tarifi için kullan."

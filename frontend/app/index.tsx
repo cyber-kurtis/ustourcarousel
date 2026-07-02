@@ -437,6 +437,14 @@ export default function Index() {
               <Ionicons name="map-outline" size={20} color="#FFFFFF" />
             </Pressable>
             <Pressable
+              testID="borders-button"
+              onPress={() => router.push("/sinirlar")}
+              hitSlop={8}
+              style={styles.actionBtn}
+            >
+              <Ionicons name="flag-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
               testID="refresh-button"
               onPress={() => { setRefreshing(true); fetchHotels(); }}
               hitSlop={8}
