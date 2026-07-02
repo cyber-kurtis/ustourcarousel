@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import { useFavorites } from "@/src/hooks/use-favorites";
 import { GuideCallout } from "@/src/components/guide-callout";
 import { AddToHome } from "@/src/components/add-to-home";
+import { BorderLiveButton } from "@/src/components/border-live-button";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -437,14 +438,6 @@ export default function Index() {
               <Ionicons name="map-outline" size={20} color="#FFFFFF" />
             </Pressable>
             <Pressable
-              testID="borders-button"
-              onPress={() => router.push("/sinirlar")}
-              hitSlop={8}
-              style={styles.actionBtn}
-            >
-              <Ionicons name="flag-outline" size={20} color="#FFFFFF" />
-            </Pressable>
-            <Pressable
               testID="refresh-button"
               onPress={() => { setRefreshing(true); fetchHotels(); }}
               hitSlop={8}
@@ -467,6 +460,10 @@ export default function Index() {
             </Pressable>
           </View>
         </View>
+
+        {/* İkonların altında: canlı sınır yoğunluğu butonu */}
+        <BorderLiveButton onPress={() => router.push("/sinirlar")} />
+
         <Text style={styles.appName}>NaviGuide</Text>
         <Text style={styles.appTagline}>
           Sadece konumu değil, kendini bulduğun yer :)

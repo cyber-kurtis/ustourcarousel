@@ -279,8 +279,8 @@ export function GuideCallout() {
               />
               <Section
                 icon="flag-outline"
-                title="Sınırlar"
-                text="Üstteki bayrak ikonuna bas: turda kullandığımız sınır kapılarının iki yönlü bekleme süreleri sürücü bildirimlerinden canlı gelir. Mola planını kuyruğa göre yap."
+                title="Sınır Kapısı Yoğunluk Bilgisi"
+                text="Performansta sınır tanımayalım ama sınırlarımızı bilelim diye masraftan kaçmadım ve canlı sınır kapısı yoğunluklarını varmadan öğrenebileceğimiz bir sistemle tek tuşla canlı veri çekiyorum. Sağ üstteki ikonların altındaki turuncu yanıp sönen 'Sınır Kapısı Yoğunluk' butonuna bas, yeter."
               />
               <Section
                 icon="map-outline"
