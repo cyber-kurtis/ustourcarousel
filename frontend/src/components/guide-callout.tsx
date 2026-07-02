@@ -178,7 +178,7 @@ export function GuideCallout() {
               >
                 <Text style={styles.bubbleTitle}>BENİ MUTLAKA OKU!</Text>
                 <Text style={styles.bubbleSub}>
-                  Şef Rehber Süleyman'dan rehberlere 👇
+                  Şef Rehber Süleyman'dan Yol Arkadaşlarına 👇
                 </Text>
                 <View style={styles.bubbleTail} />
               </Animated.View>
@@ -260,7 +260,17 @@ export function GuideCallout() {
               <Section
                 icon="heart"
                 title="Favoriler"
-                text="Sık gittiğin otel ve restoranları kalple işaretle; hepsi Favoriler sekmesinde toplansın. Tur sırasında hızlı erişim için birebir."
+                text="Tur programında kullanacağın otel ve restoranları kalple işaretle; hepsi Favoriler sekmesinde toplansın. Tur sırasında hızlı erişim için birebir."
+              />
+              <Section
+                icon="cash-outline"
+                title="Döviz"
+                text="Onca telaşın arasında kur hesaplamayla uğraşma diye TL ile güncel tüm Balkan para birimlerinin kurunu hesaplayan araç ekledim."
+              />
+              <Section
+                icon="qr-code-outline"
+                title="QR ile Ödeme Alma"
+                text="Bazen yolcu 'keşke kartla ödeyebilseydik, o zaman katılırdık' diye söylenirse ona yardımcı olmak için Garanti Bankası'na ait bir QR kodu ekledim. Kaç EUR ödeyecekse yaz, Mobil Bankacılıktan QR kodu okutsun — hepsi bu. Sen EUR rakamı yazınca altta yolcunun ödemesi gereken TL rakam görünür olur. Bu uygulama ödeme alırken SON ÇAREMİZ. Ayrıca ödeme yaparken yolcu Açıklama kısmını boş bırakmalı. :)"
               />
               <Section
                 icon="partly-sunny-outline"

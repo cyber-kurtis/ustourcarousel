@@ -474,13 +474,13 @@ export default function Index() {
       >
         <Chip
           testID="chip-hotels"
-          label="Oteller"
+          label="Otel"
           active={mode === "hotel"}
           onPress={() => setMode("hotel")}
         />
         <Chip
           testID="chip-restaurants"
-          label="Restoranlar"
+          label="Restoran"
           active={mode === "restaurant"}
           onPress={() => setMode("restaurant")}
         />
@@ -980,8 +980,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    height: 36,
-    paddingHorizontal: 18,
+    height: 34,
+    paddingHorizontal: 14,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.5)",
   },
-  chipText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  chipText: { fontSize: 12, fontWeight: "700", textAlign: "center" },
   chipTextActive: { color: "#FFFFFF" },
   chipTextInactive: { color: "#FFFFFF" },
   searchWrap: {
