@@ -13,10 +13,58 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
-// ── ŞEF REHBER SÜLEYMAN'IN FOTOĞRAFI ─────────────────────────────
-// Foto geldiğinde tek yapman gereken: assets/images/suleyman.png dosyasını
-// Süleyman'ın fotoğrafıyla DEĞİŞTİR (aynı isim, .png). Kod dokunma.
+// ── ŞEF REHBER SÜLEYMAN ──────────────────────────────────────────
+// Statik foto: assets/images/suleyman.png (native fallback)
+// Hareketli hali: public/suleyman-motion.mp4 (web'de otomatik oynar)
 const SULEYMAN_PHOTO = require("../../assets/images/suleyman.png");
+const SULEYMAN_MOTION = "/suleyman-motion.mp4";
+
+// Web'de rüzgârda saçları dalgalanan video-avatar, native'de statik foto.
+function SuleymanAvatar({
+  size,
+  borderColor,
+  borderWidth,
+}: {
+  size: number;
+  borderColor: string;
+  borderWidth: number;
+}) {
+  if (Platform.OS === "web") {
+    return (
+      // @ts-ignore — react-native-web DOM elemanını olduğu gibi basar
+      <video
+        src={SULEYMAN_MOTION}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          objectFit: "cover",
+          border: `${borderWidth}px solid ${borderColor}`,
+          backgroundColor: COLORS.brandSecondary,
+          display: "block",
+        }}
+      />
+    );
+  }
+  return (
+    <Image
+      source={SULEYMAN_PHOTO}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth,
+        borderColor,
+        backgroundColor: COLORS.brandSecondary,
+      }}
+      contentFit="cover"
+    />
+  );
+}
 
 const COLORS = {
   brandPrimary: "#003580",
@@ -119,7 +167,7 @@ export function GuideCallout() {
 
               {/* Süleyman avatarı — balonun bittiği yerde */}
               <View style={styles.avatarWrap}>
-                <Image source={SULEYMAN_PHOTO} style={styles.avatar} contentFit="cover" />
+                <SuleymanAvatar size={64} borderColor="#FFFFFF" borderWidth={3} />
                 <View style={styles.avatarBadge}>
                   <Ionicons name="megaphone" size={11} color="#FFFFFF" />
                 </View>
@@ -141,7 +189,7 @@ export function GuideCallout() {
       {/* ── Küçülünce sağ-altta duran kalıcı Süleyman balonu ─────── */}
       {!expanded && (
         <Pressable style={styles.miniBtn} onPress={openInstructions}>
-          <Image source={SULEYMAN_PHOTO} style={styles.miniAvatar} contentFit="cover" />
+          <SuleymanAvatar size={56} borderColor={COLORS.accent} borderWidth={3} />
           <View style={styles.miniBadge}>
             <Ionicons name="megaphone" size={10} color="#FFFFFF" />
           </View>
@@ -158,7 +206,7 @@ export function GuideCallout() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Image source={SULEYMAN_PHOTO} style={styles.modalAvatar} contentFit="cover" />
+              <SuleymanAvatar size={48} borderColor="#FFFFFF" borderWidth={2} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Şef Rehber Süleyman 👋</Text>
                 <Text style={styles.modalSubtitle}>
