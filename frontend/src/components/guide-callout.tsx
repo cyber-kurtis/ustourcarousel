@@ -14,9 +14,10 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
 // ── ŞEF REHBER SÜLEYMAN ──────────────────────────────────────────
-// Statik foto: assets/images/suleyman.png (native fallback)
-// Hareketli hali: public/suleyman-motion.mp4 (web'de otomatik oynar)
-const SULEYMAN_PHOTO = require("../../assets/images/suleyman.png");
+// Web: public/suleyman-motion.mp4 (94 KB, video-avatar)
+// Native: assets/images/suleyman-anim.webp (animasyonlu WebP, expo-image oynatır)
+// Paylaşılabilir GIF: https://ustnaviguide.netlify.app/suleyman.gif
+const SULEYMAN_ANIM = require("../../assets/images/suleyman-anim.webp");
 const SULEYMAN_MOTION = "/suleyman-motion.mp4";
 
 // Web'de rüzgârda saçları dalgalanan video-avatar, native'de statik foto.
@@ -52,7 +53,7 @@ function SuleymanAvatar({
   }
   return (
     <Image
-      source={SULEYMAN_PHOTO}
+      source={SULEYMAN_ANIM}
       style={{
         width: size,
         height: size,
@@ -62,6 +63,7 @@ function SuleymanAvatar({
         backgroundColor: COLORS.brandSecondary,
       }}
       contentFit="cover"
+      autoplay
     />
   );
 }
