@@ -9,6 +9,12 @@
 [functions]
   directory = "netlify/functions"
 
+# Currency rates function (must come before the /api/* catch-all below)
+[[redirects]]
+  from = "/api/rates"
+  to = "/.netlify/functions/rates"
+  status = 200
+
 # API requests go to the hotels function (must come before the SPA catch-all)
 [[redirects]]
   from = "/api/*"

@@ -35,7 +35,7 @@ type Hotel = {
   description?: string;
 };
 
-type ViewMode = "hotel" | "restaurant" | "favorites" | "weather";
+type ViewMode = "hotel" | "restaurant" | "favorites" | "currency" | "weather";
 
 type CityForecast = {
   city: string;
@@ -56,6 +56,37 @@ const WEATHER_CITIES = [
   { name: "Sarajevo", lat: 43.8563, lng: 18.4131 },
   { name: "Beograd", lat: 44.7866, lng: 20.4489 },
 ];
+
+// ── Döviz ────────────────────────────────────────────────────────
+// Balkan turu güzergâhındaki para birimleri. Kurlar /api/rates'ten
+// EUR bazlı gelir; çapraz kur = miktar / kur[kaynak] * kur[hedef].
+const CURRENCIES = [
+  { code: "TRY", name: "Türk Lirası", flag: "🇹🇷", symbol: "₺" },
+  { code: "EUR", name: "Euro", flag: "🇪🇺", symbol: "€" },
+  { code: "USD", name: "ABD Doları", flag: "🇺🇸", symbol: "$" },
+  { code: "MKD", name: "Makedon Dinarı", flag: "🇲🇰", symbol: "ден" },
+  { code: "RSD", name: "Sırp Dinarı", flag: "🇷🇸", symbol: "дин" },
+  { code: "ALL", name: "Arnavut Leki", flag: "🇦🇱", symbol: "L" },
+  { code: "BAM", name: "Bosna Markı", flag: "🇧🇦", symbol: "KM" },
+] as const;
+
+type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+// Hızlı bakış satırları: küçük birimli paralar 100'lük gösterilir.
+const QUICK_ROWS: { code: CurrencyCode; amount: number }[] = [
+  { code: "EUR", amount: 1 },
+  { code: "USD", amount: 1 },
+  { code: "BAM", amount: 1 },
+  { code: "MKD", amount: 100 },
+  { code: "RSD", amount: 100 },
+  { code: "ALL", amount: 100 },
+];
+
+const fmt = (n: number, digits = 2) =>
+  n.toLocaleString("tr-TR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 
 const TR_DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 const dayName = (dateStr: string) =>
@@ -156,6 +187,50 @@ export default function Index() {
     if (mode === "weather" && !weather && !weatherLoading) fetchWeather();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // ── Döviz state ──
+  const [rates, setRates] = useState<Record<string, number> | null>(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const [cvAmount, setCvAmount] = useState("100");
+  const [cvFrom, setCvFrom] = useState<CurrencyCode>("EUR");
+  const [cvTo, setCvTo] = useState<CurrencyCode>("TRY");
+
+  const fetchRates = useCallback(async () => {
+    try {
+      setRatesLoading(true);
+      setRatesError(null);
+      const res = await fetch(`${BACKEND_URL ?? ""}/api/rates`);
+      if (!res.ok) throw new Error("Kurlar alınamadı");
+      const data = await res.json();
+      if (!data.rates) throw new Error("Kurlar alınamadı");
+      setRates(data.rates);
+    } catch (e: any) {
+      setRatesError(e?.message ?? "Bir hata oluştu");
+    } finally {
+      setRatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode === "currency" && !rates && !ratesLoading) fetchRates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  // EUR bazlı kurlardan çapraz çeviri
+  const convert = useCallback(
+    (amount: number, from: CurrencyCode, to: CurrencyCode) => {
+      if (!rates || !rates[from] || !rates[to]) return null;
+      return (amount / rates[from]) * rates[to];
+    },
+    [rates]
+  );
+
+  const cvResult = useMemo(() => {
+    const n = parseFloat(cvAmount.replace(",", "."));
+    if (!isFinite(n) || n < 0) return null;
+    return convert(n, cvFrom, cvTo);
+  }, [cvAmount, cvFrom, cvTo, convert]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr");
@@ -404,6 +479,12 @@ export default function Index() {
           onPress={() => setMode("favorites")}
         />
         <Chip
+          testID="chip-currency"
+          label="Döviz"
+          active={mode === "currency"}
+          onPress={() => setMode("currency")}
+        />
+        <Chip
           testID="chip-weather"
           label="Hava Durumu"
           active={mode === "weather"}
@@ -411,8 +492,8 @@ export default function Index() {
         />
       </ScrollView>
 
-      {/* Arama kutusu — sekmelerin altında (hava durumunda gizli) */}
-      {mode !== "weather" && (
+      {/* Arama kutusu — sekmelerin altında (hava durumu ve dövizde gizli) */}
+      {mode !== "weather" && mode !== "currency" && (
       <View style={styles.searchWrap}>
         <View style={styles.searchBox} testID="search-box">
           <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
@@ -517,7 +598,185 @@ export default function Index() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <StatusBar barStyle="light-content" />
 
-      {mode === "weather" ? (
+      {mode === "currency" ? (
+        <ScrollView
+          stickyHeaderIndices={[0]}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          testID="currency-view"
+        >
+          {Header}
+
+          {/* QR Ekstra Tur Satışı — rehberin tahsilat ekranına giriş */}
+          <Pressable
+            testID="qr-sale-card"
+            style={({ pressed }) => [
+              styles.qrSaleCard,
+              pressed && { opacity: 0.9 },
+            ]}
+            onPress={() => router.push("/qr-satis")}
+          >
+            <View style={styles.qrSaleIconBox}>
+              <Ionicons name="qr-code" size={30} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.qrSaleTitle}>QR EKSTRA TUR SATIŞI</Text>
+              <Text style={styles.qrSaleSub}>
+                Garanti ATM ile TL tahsilatı — günün satış kurundan
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
+          </Pressable>
+
+          {ratesLoading ? (
+            <View style={styles.center} testID="currency-loading">
+              <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+            </View>
+          ) : ratesError || !rates ? (
+            <View style={styles.center} testID="currency-error">
+              <Ionicons
+                name="cash-outline"
+                size={48}
+                color={COLORS.brandPrimary}
+              />
+              <Text style={styles.errorText}>
+                {ratesError ?? "Kurlar alınamadı"}
+              </Text>
+              <Pressable style={styles.retryBtn} onPress={fetchRates}>
+                <Text style={styles.retryText}>Tekrar Dene</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              {/* Çevirici */}
+              <View style={styles.cvCard} testID="currency-converter">
+                <Text style={styles.cvCardTitle}>Döviz Çevirici</Text>
+
+                <View style={styles.cvInputRow}>
+                  <TextInput
+                    testID="cv-amount"
+                    value={cvAmount}
+                    onChangeText={setCvAmount}
+                    keyboardType="decimal-pad"
+                    inputMode="decimal"
+                    style={styles.cvInput}
+                    placeholder="Miktar"
+                    placeholderTextColor={COLORS.onSurfaceMuted}
+                  />
+                  <Text style={styles.cvInputCode}>{cvFrom}</Text>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.cvChipRow}
+                >
+                  {CURRENCIES.map((c) => (
+                    <Pressable
+                      key={`from-${c.code}`}
+                      onPress={() => setCvFrom(c.code)}
+                      style={[
+                        styles.cvChip,
+                        cvFrom === c.code && styles.cvChipActive,
+                      ]}
+                    >
+                      <Text style={styles.cvChipFlag}>{c.flag}</Text>
+                      <Text
+                        style={[
+                          styles.cvChipText,
+                          cvFrom === c.code && styles.cvChipTextActive,
+                        ]}
+                      >
+                        {c.code}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.cvSwapRow}>
+                  <View style={styles.cvSwapLine} />
+                  <Pressable
+                    testID="cv-swap"
+                    style={styles.cvSwapBtn}
+                    onPress={() => {
+                      setCvFrom(cvTo);
+                      setCvTo(cvFrom);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Ionicons
+                      name="swap-vertical"
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                  </Pressable>
+                  <View style={styles.cvSwapLine} />
+                </View>
+
+                <Text style={styles.cvResult} testID="cv-result">
+                  {cvResult == null ? "—" : fmt(cvResult)}{" "}
+                  <Text style={styles.cvResultCode}>
+                    {CURRENCIES.find((c) => c.code === cvTo)?.symbol ?? cvTo}
+                  </Text>
+                </Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.cvChipRow}
+                >
+                  {CURRENCIES.map((c) => (
+                    <Pressable
+                      key={`to-${c.code}`}
+                      onPress={() => setCvTo(c.code)}
+                      style={[
+                        styles.cvChip,
+                        cvTo === c.code && styles.cvChipActive,
+                      ]}
+                    >
+                      <Text style={styles.cvChipFlag}>{c.flag}</Text>
+                      <Text
+                        style={[
+                          styles.cvChipText,
+                          cvTo === c.code && styles.cvChipTextActive,
+                        ]}
+                      >
+                        {c.code}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Hızlı bakış — TL karşılıkları */}
+              <View style={styles.cvCard} testID="currency-quick">
+                <Text style={styles.cvCardTitle}>TL Karşılıkları</Text>
+                {QUICK_ROWS.map(({ code, amount }) => {
+                  const c = CURRENCIES.find((x) => x.code === code)!;
+                  const v = convert(amount, code, "TRY");
+                  return (
+                    <View key={code} style={styles.quickRow}>
+                      <Text style={styles.quickFlag}>{c.flag}</Text>
+                      <Text style={styles.quickLabel}>
+                        {amount} {code}
+                      </Text>
+                      <Text style={styles.quickName}>{c.name}</Text>
+                      <Text style={styles.quickValue}>
+                        {v == null ? "—" : `${fmt(v)} ₺`}
+                      </Text>
+                    </View>
+                  );
+                })}
+                <Text style={styles.cvFootnote}>
+                  Orta piyasa kuru, bilgi amaçlıdır. Tahsilatta QR satış
+                  ekranındaki günün satış kuru esas alınır.
+                </Text>
+              </View>
+            </>
+          )}
+        </ScrollView>
+      ) : mode === "weather" ? (
         <FlatList
           data={weather ?? []}
           keyExtractor={(c) => c.city}
@@ -905,6 +1164,171 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
+  // ── Döviz ──
+  qrSaleCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#00854A", // Garanti yeşili
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    shadowColor: "#00854A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  qrSaleIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qrSaleTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  qrSaleSub: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  cvCard: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cvCardTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.onSurfaceMuted,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  cvInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    height: 56,
+    marginBottom: 10,
+  },
+  cvInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+    paddingVertical: 0,
+  },
+  cvInputCode: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.brandSecondary,
+    marginLeft: 8,
+  },
+  cvChipRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingVertical: 2,
+  },
+  cvChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    height: 32,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  cvChipActive: {
+    backgroundColor: COLORS.brandTertiary,
+    borderColor: COLORS.brandSecondary,
+  },
+  cvChipFlag: { fontSize: 13 },
+  cvChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.onSurfaceMuted,
+  },
+  cvChipTextActive: { color: COLORS.brandPrimary },
+  cvSwapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginVertical: 12,
+  },
+  cvSwapLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  cvSwapBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.brandSecondary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cvResult: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: COLORS.brandPrimary,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  cvResultCode: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: COLORS.brandSecondary,
+  },
+  quickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  quickFlag: { fontSize: 16 },
+  quickLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+    minWidth: 76,
+  },
+  quickName: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.onSurfaceMuted,
+  },
+  quickValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.brandPrimary,
+  },
+  cvFootnote: {
+    fontSize: 11,
+    color: COLORS.onSurfaceMuted,
+    marginTop: 10,
+    lineHeight: 15,
+  },
   weatherCard: {
     backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
