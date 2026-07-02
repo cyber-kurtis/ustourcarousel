@@ -10,6 +10,7 @@ import {
   StatusBar,
   TextInput,
   Keyboard,
+  ScrollView,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,7 +34,50 @@ type Hotel = {
   description?: string;
 };
 
-type ViewMode = "hotel" | "restaurant" | "favorites";
+type ViewMode = "hotel" | "restaurant" | "favorites" | "weather";
+
+type CityForecast = {
+  city: string;
+  days: { date: string; code: number; max: number; min: number }[];
+};
+
+const WEATHER_CITIES = [
+  { name: "Skopje", lat: 41.9981, lng: 21.4254 },
+  { name: "Pristina", lat: 42.6629, lng: 21.1655 },
+  { name: "Prizren", lat: 42.2139, lng: 20.7397 },
+  { name: "Bitola", lat: 41.0297, lng: 21.3292 },
+  { name: "Ohrid", lat: 41.1231, lng: 20.8016 },
+  { name: "Tirana", lat: 41.3275, lng: 19.8187 },
+  { name: "Shkoder", lat: 42.0683, lng: 19.5126 },
+  { name: "Kotor", lat: 42.4247, lng: 18.7712 },
+  { name: "Trebinje", lat: 42.712, lng: 18.3444 },
+  { name: "Mostar", lat: 43.3438, lng: 17.8078 },
+  { name: "Sarajevo", lat: 43.8563, lng: 18.4131 },
+  { name: "Beograd", lat: 44.7866, lng: 20.4489 },
+];
+
+const TR_DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+const dayName = (dateStr: string) =>
+  TR_DAYS[new Date(dateStr + "T12:00:00").getDay()];
+
+// WMO hava kodu → ikon + Türkçe etiket
+function weatherInfo(code: number): {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+} {
+  if (code === 0) return { icon: "sunny", label: "Açık" };
+  if (code === 1) return { icon: "partly-sunny", label: "Az bulutlu" };
+  if (code === 2) return { icon: "partly-sunny", label: "Parçalı bulutlu" };
+  if (code === 3) return { icon: "cloudy", label: "Bulutlu" };
+  if (code === 45 || code === 48) return { icon: "cloudy", label: "Sisli" };
+  if (code >= 51 && code <= 57) return { icon: "rainy", label: "Çisenti" };
+  if (code >= 61 && code <= 67) return { icon: "rainy", label: "Yağmurlu" };
+  if (code >= 71 && code <= 77) return { icon: "snow", label: "Karlı" };
+  if (code >= 80 && code <= 82) return { icon: "rainy", label: "Sağanak" };
+  if (code === 85 || code === 86) return { icon: "snow", label: "Kar sağanağı" };
+  if (code >= 95) return { icon: "thunderstorm", label: "Fırtınalı" };
+  return { icon: "cloudy", label: "" };
+}
 
 type Row =
   | { type: "header"; key: string; country: string; count: number }
@@ -72,6 +116,45 @@ export default function Index() {
   const [mode, setMode] = useState<ViewMode>("hotel");
   const { isFavorite, toggle } = useFavorites();
   const [searchFocused, setSearchFocused] = useState(false);
+
+  const [weather, setWeather] = useState<CityForecast[] | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+
+  const fetchWeather = useCallback(async () => {
+    try {
+      setWeatherLoading(true);
+      setWeatherError(null);
+      const lats = WEATHER_CITIES.map((c) => c.lat).join(",");
+      const lngs = WEATHER_CITIES.map((c) => c.lng).join(",");
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`
+      );
+      if (!res.ok) throw new Error("Hava durumu alınamadı");
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : [data];
+      setWeather(
+        WEATHER_CITIES.map((c, i) => ({
+          city: c.name,
+          days: (arr[i]?.daily?.time ?? []).map((t: string, j: number) => ({
+            date: t,
+            code: arr[i].daily.weather_code[j],
+            max: arr[i].daily.temperature_2m_max[j],
+            min: arr[i].daily.temperature_2m_min[j],
+          })),
+        }))
+      );
+    } catch (e: any) {
+      setWeatherError(e?.message ?? "Bir hata oluştu");
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode === "weather" && !weather && !weatherLoading) fetchWeather();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr");
@@ -295,31 +378,40 @@ export default function Index() {
       </View>
 
       {/* Sekmeler */}
-      <View style={styles.chipsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipsScroll}
+        contentContainerStyle={styles.chipsRow}
+      >
         <Chip
           testID="chip-hotels"
           label="Oteller"
-          icon="bed-outline"
           active={mode === "hotel"}
           onPress={() => setMode("hotel")}
         />
         <Chip
           testID="chip-restaurants"
           label="Restoranlar"
-          icon="restaurant-outline"
           active={mode === "restaurant"}
           onPress={() => setMode("restaurant")}
         />
         <Chip
           testID="chip-favorites"
           label="Favoriler"
-          icon="heart"
           active={mode === "favorites"}
           onPress={() => setMode("favorites")}
         />
-      </View>
+        <Chip
+          testID="chip-weather"
+          label="Hava Durumu"
+          active={mode === "weather"}
+          onPress={() => setMode("weather")}
+        />
+      </ScrollView>
 
-      {/* Arama kutusu — sekmelerin altında */}
+      {/* Arama kutusu — sekmelerin altında (hava durumunda gizli) */}
+      {mode !== "weather" && (
       <View style={styles.searchWrap}>
         <View style={styles.searchBox} testID="search-box">
           <Ionicons name="search" size={18} color={COLORS.onSurfaceMuted} />
@@ -380,14 +472,81 @@ export default function Index() {
           </View>
         )}
       </View>
+      )}
     </View>
   );
+
+  const renderWeatherCard = ({ item }: { item: CityForecast }) => {
+    const today = item.days[0];
+    return (
+      <View style={styles.weatherCard}>
+        <View style={styles.weatherCityRow}>
+          <Ionicons name="location" size={15} color={COLORS.brandSecondary} />
+          <Text style={styles.weatherCity}>{item.city}</Text>
+          {today && (
+            <Text style={styles.weatherToday}>
+              {weatherInfo(today.code).label}
+            </Text>
+          )}
+        </View>
+        <View style={styles.weatherDaysRow}>
+          {item.days.map((d, i) => {
+            const info = weatherInfo(d.code);
+            return (
+              <View key={d.date} style={styles.weatherDay}>
+                <Text style={styles.weatherDayName}>
+                  {i === 0 ? "Bugün" : dayName(d.date)}
+                </Text>
+                <Ionicons
+                  name={info.icon}
+                  size={22}
+                  color={COLORS.brandSecondary}
+                />
+                <Text style={styles.weatherMax}>{Math.round(d.max)}°</Text>
+                <Text style={styles.weatherMin}>{Math.round(d.min)}°</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <StatusBar barStyle="light-content" />
 
-      {loading ? (
+      {mode === "weather" ? (
+        <FlatList
+          data={weather ?? []}
+          keyExtractor={(c) => c.city}
+          renderItem={renderWeatherCard}
+          ListHeaderComponent={Header}
+          stickyHeaderIndices={[0]}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          testID="weather-list"
+          ListEmptyComponent={
+            <View style={styles.center} testID="weather-status">
+              {weatherLoading ? (
+                <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+              ) : weatherError ? (
+                <>
+                  <Ionicons
+                    name="cloud-offline-outline"
+                    size={48}
+                    color={COLORS.brandPrimary}
+                  />
+                  <Text style={styles.errorText}>{weatherError}</Text>
+                  <Pressable style={styles.retryBtn} onPress={fetchWeather}>
+                    <Text style={styles.retryText}>Tekrar Dene</Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+          }
+        />
+      ) : loading ? (
         <>
           {Header}
           <View style={styles.center} testID="home-loading">
@@ -537,12 +696,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  chipsScroll: {
+    backgroundColor: COLORS.brandPrimary,
+    flexGrow: 0,
+  },
   chipsRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingBottom: 10,
     gap: 8,
-    backgroundColor: COLORS.brandPrimary,
   },
   chip: {
     height: 36,
@@ -739,4 +901,56 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
+  weatherCard: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  weatherCityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
+  weatherCity: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+    flex: 1,
+  },
+  weatherToday: {
+    fontSize: 12,
+    color: COLORS.onSurfaceMuted,
+    fontWeight: "600",
+  },
+  weatherDaysRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  weatherDay: {
+    alignItems: "center",
+    gap: 3,
+    flex: 1,
+  },
+  weatherDayName: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.onSurfaceMuted,
+  },
+  weatherMax: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+  },
+  weatherMin: {
+    fontSize: 12,
+    color: COLORS.onSurfaceMuted,
+  },
 });
