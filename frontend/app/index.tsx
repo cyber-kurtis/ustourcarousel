@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { useFavorites } from "@/src/hooks/use-favorites";
+import { GuideCallout } from "@/src/components/guide-callout";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -619,6 +620,9 @@ export default function Index() {
           testID="hotel-list"
         />
       )}
+
+      {/* Şef Rehber Süleyman callout'u — ekranda sabit, kaydırmadan etkilenmez */}
+      <GuideCallout />
     </SafeAreaView>
   );
 }
