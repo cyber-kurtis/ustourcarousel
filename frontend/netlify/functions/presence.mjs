@@ -51,16 +51,17 @@ export default async (req) => {
 
     const existing = await store.get(id, { type: "json" }).catch(() => null);
     const blocked = existing?.blocked ?? false;
+    // Önce mevcut kaydı olduğu gibi koru (blocked/name_locked dahil) —
+    // kalp atışı yönetici alanlarını asla ezmesin.
     await store.setJSON(id, {
+      ...(existing ?? {}),
       // Yönetici isim verdiyse istemci ismi ezemez
       name: existing?.name_locked
         ? existing.name
         : String(body?.name ?? existing?.name ?? "").slice(0, 40),
-      name_locked: existing?.name_locked ?? false,
       device: String(body?.device ?? existing?.device ?? "").slice(0, 80),
       first_seen: existing?.first_seen ?? Date.now(),
       last_seen: Date.now(),
-      blocked,
     });
     return json({ ok: true, blocked });
   }
