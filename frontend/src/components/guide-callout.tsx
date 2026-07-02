@@ -9,6 +9,7 @@ import {
   ScrollView,
   Platform,
   Easing,
+  Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +20,21 @@ import { Ionicons } from "@expo/vector-icons";
 // Paylaşılabilir GIF: https://ustnaviguide.netlify.app/suleyman.gif
 const SULEYMAN_ANIM = require("../../assets/images/suleyman-anim.webp");
 const SULEYMAN_MOTION = "/suleyman-motion.mp4";
+
+// ── DESTEK / İLETİŞİM ────────────────────────────────────────────
+// Rehber bir sorun yaşarsa buradan sana (yöneticiye) WhatsApp'tan yazar.
+// ÖNEMLİ: Kendi numaranı yaz. Format: ülke kodu + numara, artı/sıfır YOK.
+// Örnek Türkiye cep: 905321234567  (+90 532 123 45 67)
+const WHATSAPP_NUMBER = "38970856832"; // Süleyman — +389 70 856 832 (Kuzey Makedonya)
+const WHATSAPP_MESSAGE =
+  "Merhaba, NaviGuide uygulamasında bir sorun var:";
+
+function openWhatsApp() {
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    WHATSAPP_MESSAGE
+  )}`;
+  Linking.openURL(url).catch(() => {});
+}
 
 // Web'de rüzgârda saçları dalgalanan video-avatar, native'de statik foto.
 function SuleymanAvatar({
@@ -260,6 +276,16 @@ export function GuideCallout() {
               <Text style={[styles.p, styles.signoff]}>
                 Hepsi bu kadar. İyi turlar, bol bahşiş! 🚌{"\n"}— Süleyman
               </Text>
+
+              <View style={styles.problemBox}>
+                <Text style={styles.problemText}>
+                  Bir sorun mu var? Takıldığın yeri bana WhatsApp'tan yaz 👇
+                </Text>
+                <Pressable style={styles.whatsappBtn} onPress={openWhatsApp}>
+                  <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
+                  <Text style={styles.whatsappText}>Süleyman'a WhatsApp'tan yaz</Text>
+                </Pressable>
+              </View>
             </ScrollView>
 
             <Pressable style={styles.gotItBtn} onPress={closeInstructions}>
@@ -502,6 +528,33 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: COLORS.onSurfaceMuted,
     paddingLeft: 36,
+  },
+  problemBox: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#ECECEC",
+  },
+  problemText: {
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: COLORS.onSurfaceMuted,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  whatsappBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#25D366",
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  whatsappText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
   },
   gotItBtn: {
     margin: 16,

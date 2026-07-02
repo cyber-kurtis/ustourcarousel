@@ -19,6 +19,7 @@ import { useRouter } from "expo-router";
 
 import { useFavorites } from "@/src/hooks/use-favorites";
 import { GuideCallout } from "@/src/components/guide-callout";
+import { AddToHome } from "@/src/components/add-to-home";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -887,6 +888,9 @@ export default function Index() {
 
       {/* Şef Rehber Süleyman callout'u — ekranda sabit, kaydırmadan etkilenmez */}
       <GuideCallout />
+
+      {/* Açılışta "ana ekrana ekle" tarifi (sadece web tarayıcıda) */}
+      <AddToHome />
     </SafeAreaView>
   );
 }
