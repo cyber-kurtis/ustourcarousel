@@ -126,6 +126,8 @@ type Guide = {
   device: string;
   first_seen: number;
   last_seen: number;
+  blocked?: boolean;
+  name_locked?: boolean;
 };
 
 const ONLINE_MS = 3 * 60 * 1000; // son 3 dk içinde sinyal = çevrimiçi
@@ -144,6 +146,9 @@ function OnlineGuides() {
   const [guides, setGuides] = useState<Guide[] | null>(null);
   const [now, setNow] = useState(Date.now());
   const [expanded, setExpanded] = useState(false);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const loadGuides = useCallback(async () => {
     try {
@@ -159,6 +164,32 @@ function OnlineGuides() {
   useEffect(() => {
     loadGuides();
   }, [loadGuides]);
+
+  // Yönetici işlemi: pause | resume | rename | remove
+  const adminAction = async (
+    id: string,
+    action: string,
+    name?: string
+  ) => {
+    setBusy(true);
+    try {
+      await fetch(`${BACKEND_URL ?? ""}/api/presence`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: ADMIN_PIN, id, action, name }),
+      });
+      await loadGuides();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveRename = async () => {
+    const name = renameText.trim();
+    if (renameId && name) await adminAction(renameId, "rename", name);
+    setRenameId(null);
+    setRenameText("");
+  };
 
   if (guides === null) return null;
 
@@ -184,25 +215,95 @@ function OnlineGuides() {
 
       {shown.map((g) => {
         const isOnline = now - g.last_seen < ONLINE_MS;
+        const isRenaming = renameId === g.id;
         return (
           <View key={g.id} style={styles.presenceRow}>
             <View
               style={[
                 styles.onlineDot,
-                { backgroundColor: isOnline ? COLORS.success : COLORS.border },
+                {
+                  backgroundColor: g.blocked
+                    ? COLORS.danger
+                    : isOnline
+                    ? COLORS.success
+                    : COLORS.border,
+                },
               ]}
             />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.presenceName} numberOfLines={1}>
-                {g.name || "İsimsiz rehber"}
-              </Text>
-              <Text style={styles.presenceDevice} numberOfLines={1}>
-                {g.device || "Bilinmeyen cihaz"}
-              </Text>
-            </View>
-            <Text style={styles.presenceTime}>
-              {isOnline ? "çevrimiçi" : relTime(now - g.last_seen)}
-            </Text>
+            {isRenaming ? (
+              <>
+                <TextInput
+                  value={renameText}
+                  onChangeText={setRenameText}
+                  placeholder="Rehberin adı"
+                  placeholderTextColor={COLORS.onSurfaceMuted}
+                  style={styles.renameInput}
+                  autoFocus
+                  maxLength={40}
+                  onSubmitEditing={saveRename}
+                />
+                <Pressable onPress={saveRename} hitSlop={6} style={styles.presenceIconBtn}>
+                  <Ionicons name="checkmark" size={18} color={COLORS.success} />
+                </Pressable>
+                <Pressable
+                  onPress={() => { setRenameId(null); setRenameText(""); }}
+                  hitSlop={6}
+                  style={styles.presenceIconBtn}
+                >
+                  <Ionicons name="close" size={18} color={COLORS.onSurfaceMuted} />
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.presenceNameRow}>
+                    <Text style={styles.presenceName} numberOfLines={1}>
+                      {g.name || "İsimsiz rehber"}
+                    </Text>
+                    {g.blocked && (
+                      <View style={styles.pausedBadge}>
+                        <Text style={styles.pausedBadgeText}>DURAKLATILDI</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.presenceDevice} numberOfLines={1}>
+                    {g.device || "Bilinmeyen cihaz"} ·{" "}
+                    {isOnline ? "çevrimiçi" : relTime(now - g.last_seen)}
+                  </Text>
+                </View>
+                {/* İsim ver / değiştir */}
+                <Pressable
+                  onPress={() => { setRenameId(g.id); setRenameText(g.name || ""); }}
+                  hitSlop={6}
+                  style={styles.presenceIconBtn}
+                  disabled={busy}
+                >
+                  <Ionicons name="create-outline" size={17} color={COLORS.brandPrimary} />
+                </Pressable>
+                {/* Duraklat / devam ettir */}
+                <Pressable
+                  onPress={() => adminAction(g.id, g.blocked ? "resume" : "pause")}
+                  hitSlop={6}
+                  style={styles.presenceIconBtn}
+                  disabled={busy}
+                >
+                  <Ionicons
+                    name={g.blocked ? "play-circle-outline" : "pause-circle-outline"}
+                    size={19}
+                    color={g.blocked ? COLORS.success : "#E08700"}
+                  />
+                </Pressable>
+                {/* Kaydı sil */}
+                <Pressable
+                  onPress={() => adminAction(g.id, "remove")}
+                  hitSlop={6}
+                  style={styles.presenceIconBtn}
+                  disabled={busy}
+                >
+                  <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
+                </Pressable>
+              </>
+            )}
           </View>
         );
       })}
@@ -695,6 +796,43 @@ const styles = StyleSheet.create({
   presenceName: {
     fontSize: 13.5,
     fontWeight: "700",
+    color: COLORS.onSurface,
+    flexShrink: 1,
+  },
+  presenceNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pausedBadge: {
+    backgroundColor: COLORS.danger,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  pausedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 8.5,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  presenceIconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+    marginLeft: 4,
+  },
+  renameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13.5,
     color: COLORS.onSurface,
   },
   presenceDevice: {

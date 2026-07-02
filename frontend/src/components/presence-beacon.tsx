@@ -67,25 +67,37 @@ function deviceLabel(): string {
   return browser ? `${device} · ${browser}` : device;
 }
 
-async function sendHeartbeat(id: string, name: string) {
+// Kalp atışı gönder; sunucu bu cihaz duraklatılmışsa blocked:true döner.
+async function sendHeartbeat(id: string, name: string): Promise<boolean> {
   try {
-    await fetch(`${BACKEND_URL ?? ""}/api/presence`, {
+    const res = await fetch(`${BACKEND_URL ?? ""}/api/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, name, device: deviceLabel() }),
     });
-  } catch {}
+    const data = await res.json();
+    return Boolean(data?.blocked);
+  } catch {
+    return false; // ağ hatasında kilitleme — çevrimdışı rehberi mağdur etme
+  }
 }
 
 export function PresenceBeacon() {
   const [askName, setAskName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [blocked, setBlocked] = useState(false);
   const idRef = useRef<string | null>(null);
   const nameRef = useRef<string>("");
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+
+    const beat = async () => {
+      if (!idRef.current) return;
+      const isBlocked = await sendHeartbeat(idRef.current, nameRef.current);
+      if (!cancelled) setBlocked(isBlocked);
+    };
 
     (async () => {
       // Kalıcı cihaz kimliği
@@ -103,11 +115,8 @@ export function PresenceBeacon() {
       if (cancelled) return;
 
       // İlk sinyal hemen, sonra periyodik
-      sendHeartbeat(id, nameRef.current);
-      interval = setInterval(
-        () => sendHeartbeat(idRef.current!, nameRef.current),
-        HEARTBEAT_MS
-      );
+      beat();
+      interval = setInterval(beat, HEARTBEAT_MS);
 
       // İsim yoksa (ve daha önce "atla" denmediyse) biraz sonra sor —
       // açılıştaki diğer pencerelerle çakışmasın diye 6 sn bekle.
@@ -124,6 +133,12 @@ export function PresenceBeacon() {
     };
   }, []);
 
+  const retryBlocked = async () => {
+    if (!idRef.current) return;
+    const isBlocked = await sendHeartbeat(idRef.current, nameRef.current);
+    setBlocked(isBlocked);
+  };
+
   const saveName = async () => {
     const name = nameInput.trim().slice(0, 40);
     if (!name) return;
@@ -137,6 +152,28 @@ export function PresenceBeacon() {
     setAskName(false);
     await AsyncStorage.setItem(KEY_NAME_SKIP, "1");
   };
+
+  // ── Kilit ekranı: yönetici bu cihazı duraklattı ──
+  if (blocked) {
+    return (
+      <Modal visible transparent animationType="fade">
+        <View style={styles.blockBackdrop}>
+          <View style={styles.card}>
+            <Ionicons name="pause-circle" size={52} color={COLORS.accent} />
+            <Text style={styles.title}>Kullanım Duraklatıldı</Text>
+            <Text style={styles.sub}>
+              Bu cihazın erişimi UStour yönetimi tarafından geçici olarak
+              durduruldu. Yanlışlık olduğunu düşünüyorsan yöneticiyle
+              iletişime geç.
+            </Text>
+            <Pressable style={styles.saveBtn} onPress={retryBlocked}>
+              <Text style={styles.saveText}>Tekrar Dene</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -180,6 +217,14 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  // Kilit ekranı arkası tam opak — uygulama kullanılamasın
+  blockBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,20,50,0.97)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
