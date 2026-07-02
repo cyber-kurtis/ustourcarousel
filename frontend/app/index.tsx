@@ -418,6 +418,17 @@ export default function Index() {
           />
           <View style={styles.headerActions}>
             <Pressable
+              testID="weather-button"
+              onPress={() => setMode("weather")}
+              hitSlop={8}
+              style={[
+                styles.actionBtn,
+                mode === "weather" && styles.actionBtnActive,
+              ]}
+            >
+              <Ionicons name="partly-sunny-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
               onPress={() => router.push("/map")}
               hitSlop={8}
               style={styles.actionBtn}
@@ -473,22 +484,16 @@ export default function Index() {
           onPress={() => setMode("restaurant")}
         />
         <Chip
-          testID="chip-favorites"
-          label="Favoriler"
-          active={mode === "favorites"}
-          onPress={() => setMode("favorites")}
-        />
-        <Chip
           testID="chip-currency"
           label="Döviz"
           active={mode === "currency"}
           onPress={() => setMode("currency")}
         />
         <Chip
-          testID="chip-weather"
-          label="Hava Durumu"
-          active={mode === "weather"}
-          onPress={() => setMode("weather")}
+          testID="chip-favorites"
+          label="Favoriler"
+          active={mode === "favorites"}
+          onPress={() => setMode("favorites")}
         />
       </ScrollView>
 
@@ -959,6 +964,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionBtnActive: { backgroundColor: "#FF6600" },
   chipsScroll: {
     backgroundColor: COLORS.brandPrimary,
     flexGrow: 0,
