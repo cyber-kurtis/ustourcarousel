@@ -15,7 +15,7 @@ import {
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 
 import { useFavorites } from "@/src/hooks/use-favorites";
 import { GuideCallout } from "@/src/components/guide-callout";
@@ -272,7 +272,10 @@ export default function Index() {
   const fetchHotels = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch(`${BACKEND_URL}/api/hotels`);
+      // cache: no-store — iPhone/PWA tarayıcısı eski listeyi göstermesin
+      const res = await fetch(`${BACKEND_URL}/api/hotels`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Sunucu hatası");
       const data: Hotel[] = await res.json();
       setHotels(data);
@@ -284,9 +287,13 @@ export default function Index() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchHotels();
-  }, [fetchHotels]);
+  // Ekran her odaklandığında yeniden çek — yönetim panelinde ekleme/silme
+  // yapıp geri dönünce liste kendiliğinden güncellensin (ilk açılış dahil).
+  useFocusEffect(
+    useCallback(() => {
+      fetchHotels();
+    }, [fetchHotels])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

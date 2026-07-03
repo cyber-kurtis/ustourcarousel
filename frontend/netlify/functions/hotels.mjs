@@ -15,7 +15,12 @@ const CORS = {
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS },
+    headers: {
+      "Content-Type": "application/json",
+      // Liste her zaman taze gelsin — tarayıcı/PWA eski listeyi göstermesin
+      "Cache-Control": "no-store",
+      ...CORS,
+    },
   });
 
 const sbHeaders = () => ({

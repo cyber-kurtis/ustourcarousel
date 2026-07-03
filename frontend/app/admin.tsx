@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,16 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const ADMIN_PIN = "ustour"; // simple gate; change as needed
+
+// Hatalar sessiz kalmasın: web'de alert, native'de Alert.alert
+function notify(msg: string) {
+  if (Platform.OS === "web") {
+    // eslint-disable-next-line no-alert
+    window.alert(msg);
+  } else {
+    Alert.alert("NaviGuide", msg);
+  }
+}
 
 type Hotel = {
   id: string;
@@ -330,9 +341,13 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/hotels`);
+      const res = await fetch(`${BACKEND_URL}/api/hotels`, {
+        cache: "no-store",
+      });
       const data: Hotel[] = await res.json();
       setItems(data.sort((a, b) => a.name.localeCompare(b.name)));
+    } catch {
+      notify("Liste yüklenemedi. İnternetini kontrol edip tekrar dene.");
     } finally {
       setLoading(false);
     }
@@ -343,7 +358,17 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
   }, [load]);
 
   const handleDelete = async (id: string) => {
-    await fetch(`${BACKEND_URL}/api/hotels/${id}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/hotels/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        notify(`Silinemedi: ${d.detail ?? `HTTP ${res.status}`}`);
+      }
+    } catch {
+      notify("Silinemedi — bağlantı hatası. Tekrar dene.");
+    }
     load();
   };
 
@@ -361,21 +386,26 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
       description: form.description || "",
     };
     try {
-      if (form.id) {
-        await fetch(`${BACKEND_URL}/api/hotels/${form.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`${BACKEND_URL}/api/hotels`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const res = form.id
+        ? await fetch(`${BACKEND_URL}/api/hotels/${form.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch(`${BACKEND_URL}/api/hotels`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        notify(`Kaydedilemedi: ${d.detail ?? `HTTP ${res.status}`}`);
+        return; // form açık kalsın, girilenler kaybolmasın
       }
       setEditing(null);
       load();
+    } catch {
+      notify("Kaydedilemedi — bağlantı hatası. Tekrar dene.");
     } finally {
       setSaving(false);
     }
