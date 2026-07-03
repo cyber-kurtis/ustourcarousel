@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   TextInput,
   Keyboard,
   ScrollView,
+  Platform,
+  Animated,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,6 +25,7 @@ import { AddToHome } from "@/src/components/add-to-home";
 import { BorderLiveButton } from "@/src/components/border-live-button";
 import { PresenceBeacon } from "@/src/components/presence-beacon";
 import { optimizedImage } from "@/src/lib/img";
+import { APP_VERSION } from "@/src/lib/version";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -301,6 +304,65 @@ export default function Index() {
     fetchHotels();
   };
 
+  // ── Yeni sürüm kontrolü ──
+  // 5 dk'da bir sunucudaki /version.json ile paketteki APP_VERSION
+  // karşılaştırılır; farklıysa ↻ butonu sarı yanıp söner.
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const blink = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const check = async () => {
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        const d = await r.json();
+        if (d?.v && APP_VERSION !== "dev" && d.v !== APP_VERSION) {
+          setUpdateAvailable(true);
+        }
+      } catch {}
+    };
+    check();
+    const iv = setInterval(check, 5 * 60_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    if (!updateAvailable) return;
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blink, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false, // renk animasyonu native driver desteklemez
+        }),
+        Animated.timing(blink, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [updateAvailable, blink]);
+
+  const refreshBg = blink.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.15)", "#FFC400"],
+  });
+
+  // ↻ basılınca: yeni sürüm varsa sayfayı tazele (yeni paket insin),
+  // yoksa normal liste yenilemesi yap.
+  const onRefreshPress = () => {
+    if (updateAvailable && Platform.OS === "web") {
+      // @ts-ignore — sadece web'de çalışır
+      window.location.reload();
+      return;
+    }
+    setRefreshing(true);
+    fetchHotels();
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     return hotels.filter((h) => {
@@ -446,19 +508,30 @@ export default function Index() {
             >
               <Ionicons name="map-outline" size={20} color="#FFFFFF" />
             </Pressable>
-            <Pressable
-              testID="refresh-button"
-              onPress={() => { setRefreshing(true); fetchHotels(); }}
-              hitSlop={8}
-              style={styles.actionBtn}
-              disabled={refreshing}
+            <Animated.View
+              style={[
+                styles.actionBtnBlinkWrap,
+                updateAvailable && { backgroundColor: refreshBg },
+              ]}
             >
-              {refreshing ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
-              )}
-            </Pressable>
+              <Pressable
+                testID="refresh-button"
+                onPress={onRefreshPress}
+                hitSlop={8}
+                style={[styles.actionBtn, updateAvailable && styles.actionBtnClear]}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons
+                    name="refresh-outline"
+                    size={20}
+                    color={updateAvailable ? "#003580" : "#FFFFFF"}
+                  />
+                )}
+              </Pressable>
+            </Animated.View>
             <Pressable
               testID="admin-link"
               onPress={() => router.push("/admin")}
@@ -992,6 +1065,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   actionBtnActive: { backgroundColor: "#FF6600" },
+  // Yeni sürüm uyarısı: ↻ butonunun etrafındaki yanıp sönen sarı daire
+  actionBtnBlinkWrap: {
+    borderRadius: 18,
+  },
+  actionBtnClear: {
+    backgroundColor: "transparent",
+  },
   chipsScroll: {
     backgroundColor: COLORS.brandPrimary,
     flexGrow: 0,

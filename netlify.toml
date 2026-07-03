@@ -1,7 +1,13 @@
 [build]
   base = "frontend"
-  command = "yarn install && npx expo export --platform web"
+  command = "yarn install && node scripts/write-version.js && npx expo export --platform web"
   publish = "dist"
+
+# Sürüm damgası her zaman taze okunmalı (yeni sürüm uyarısı için)
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-store"
 
 [build.environment]
   NODE_VERSION = "20"
