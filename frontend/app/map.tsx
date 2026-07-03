@@ -80,12 +80,20 @@ const MAP_HTML = `<!DOCTYPE html>
       {name:"Split — Diocletianus Sarayı",lat:43.5086,lng:16.4400,desc:"Saray girişi, tur başlangıcı"},
       {name:"Priştine — Tereziya Bulvarı",lat:42.6629,lng:21.1655,desc:"Merkezi bulvar başlangıcı"}
     ];
+    // Panelden eklenen pinler turuncu — sabit tur noktalarından ayrılsın
+    var adminPinIcon=L.divIcon({html:'<div style="background:#FF6600;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]});
     var pendingUrl=null;
-    locs.forEach(function(loc){
-      var m=L.marker([loc.lat,loc.lng],{icon:pinIcon}).addTo(map);
+    function addPin(loc,icon){
+      var m=L.marker([loc.lat,loc.lng],{icon:icon}).addTo(map);
       var n=loc.name.replace(/'/g,"\\'");
-      m.bindPopup('<div class="popup-inner"><div class="popup-name">'+loc.name+'</div><div class="popup-desc">'+loc.desc+'</div><button class="popup-btn" onclick="ask('+loc.lat+','+loc.lng+',\''+n+'\')">&#9655; Buraya Git</button></div>',{maxWidth:260});
-    });
+      m.bindPopup('<div class="popup-inner"><div class="popup-name">'+loc.name+'</div><div class="popup-desc">'+(loc.desc||'')+'</div><button class="popup-btn" onclick="ask('+loc.lat+','+loc.lng+',\''+n+'\')">&#9655; Buraya Git</button></div>',{maxWidth:260});
+    }
+    locs.forEach(function(loc){addPin(loc,pinIcon);});
+    // Yönetim panelinden eklenen konumlar (canlı)
+    fetch('https://ustnaviguide.netlify.app/api/locations')
+      .then(function(r){return r.json();})
+      .then(function(d){(d.locations||[]).forEach(function(loc){addPin(loc,adminPinIcon);});})
+      .catch(function(){});
     function ask(lat,lng,name){
       pendingUrl='https://www.google.com/maps/dir/?api=1&destination='+lat+','+lng;
       document.getElementById('dialog-sub').textContent='"'+name+'" konumuna gitmek istiyor musunuz?';

@@ -333,11 +333,230 @@ function OnlineGuides() {
   );
 }
 
+// ── Konumlar (harita pinleri) yöneticisi ──
+type MapLocation = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  desc?: string;
+};
+
+// Google Maps linkinden ya da "enlem, boylam" metninden koordinat sök.
+// Öncelik: !3d..!4d.. (mekânın gerçek yeri) > düz "44.81, 20.38" çifti.
+function parseCoords(s: string): { lat: number; lng: number } | null {
+  const bang = s.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if (bang) return { lat: parseFloat(bang[1]), lng: parseFloat(bang[2]) };
+  const pair = s.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if (pair) return { lat: parseFloat(pair[1]), lng: parseFloat(pair[2]) };
+  return null;
+}
+
+function LocationsManager() {
+  const [locs, setLocs] = useState<MapLocation[] | null>(null);
+  const [name, setName] = useState("");
+  const [coordsText, setCoordsText] = useState("");
+  const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      setLocs(data.locations ?? []);
+    } catch {
+      setLocs([]);
+      notify("Konumlar yüklenemedi.");
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const parsed = parseCoords(coordsText);
+
+  const addLocation = async () => {
+    if (!name.trim()) {
+      notify("Konuma bir isim ver (ör. Hotel Nobel Inn).");
+      return;
+    }
+    if (!parsed) {
+      notify(
+        "Koordinat bulunamadı. Google Maps linkini olduğu gibi yapıştır ya da '44.8116859, 20.3876076' biçiminde yaz."
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin: ADMIN_PIN,
+          action: "add",
+          name: name.trim(),
+          lat: parsed.lat,
+          lng: parsed.lng,
+          desc: desc.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        notify(`Eklenemedi: ${d.detail ?? `HTTP ${res.status}`}`);
+        return;
+      }
+      setName("");
+      setCoordsText("");
+      setDesc("");
+      load();
+    } catch {
+      notify("Eklenemedi — bağlantı hatası.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeLocation = async (id: string) => {
+    setBusy(true);
+    try {
+      await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: ADMIN_PIN, action: "remove", id }),
+      });
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <KeyboardAwareScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={styles.listContent}
+    >
+      {/* Yeni konum formu */}
+      <View style={styles.locCard}>
+        <Text style={styles.locCardTitle}>Yeni Konum Ekle</Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Konum adı (ör. Hotel Nobel Inn)"
+          placeholderTextColor={COLORS.onSurfaceMuted}
+          style={styles.locInput}
+          maxLength={80}
+        />
+        <TextInput
+          value={coordsText}
+          onChangeText={setCoordsText}
+          placeholder="Google Maps linkini yapıştır veya: 44.8116859, 20.3876076"
+          placeholderTextColor={COLORS.onSurfaceMuted}
+          style={[styles.locInput, styles.locInputMono]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          multiline
+        />
+        {coordsText.length > 0 && (
+          <Text style={[styles.locParse, { color: parsed ? COLORS.success : COLORS.danger }]}>
+            {parsed
+              ? `✓ Koordinat bulundu: ${parsed.lat.toFixed(6)}, ${parsed.lng.toFixed(6)}`
+              : "✗ Koordinat bulunamadı — linki olduğu gibi yapıştır"}
+          </Text>
+        )}
+        <TextInput
+          value={desc}
+          onChangeText={setDesc}
+          placeholder="Kısa açıklama (isteğe bağlı)"
+          placeholderTextColor={COLORS.onSurfaceMuted}
+          style={styles.locInput}
+          maxLength={160}
+        />
+        <Pressable
+          style={[styles.locAddBtn, busy && { opacity: 0.6 }]}
+          onPress={addLocation}
+          disabled={busy}
+        >
+          <Ionicons name="location" size={17} color="#FFFFFF" />
+          <Text style={styles.locAddText}>Haritaya Ekle</Text>
+        </Pressable>
+        <Text style={styles.locHint}>
+          Eklediğin konumlar haritada turuncu pin olarak görünür.
+        </Text>
+      </View>
+
+      {/* Mevcut konumlar */}
+      {locs === null ? (
+        <ActivityIndicator color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
+      ) : locs.length === 0 ? (
+        <Text style={styles.locEmpty}>Panelden eklenmiş konum yok.</Text>
+      ) : (
+        locs.map((l) => (
+          <View key={l.id} style={styles.locRow}>
+            <View style={styles.locDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locName} numberOfLines={1}>
+                {l.name}
+              </Text>
+              <Text style={styles.locMeta} numberOfLines={1}>
+                {l.lat.toFixed(5)}, {l.lng.toFixed(5)}
+                {l.desc ? ` · ${l.desc}` : ""}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => removeLocation(l.id)}
+              hitSlop={6}
+              style={styles.iconBtn}
+              disabled={busy}
+            >
+              <Ionicons name="trash-outline" size={19} color={COLORS.danger} />
+            </Pressable>
+          </View>
+        ))
+      )}
+    </KeyboardAwareScrollView>
+  );
+}
+
+type AdminTab = "visitors" | "content" | "locations";
+
+function TabBtn({
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.tabBtn, active && styles.tabBtnActive]}
+    >
+      <Ionicons
+        name={icon}
+        size={15}
+        color={active ? "#FFFFFF" : COLORS.brandPrimary}
+      />
+      <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function AdminPanel({ onExit }: { onExit: () => void }) {
   const [items, setItems] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Hotel | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<AdminTab>("visitors");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -422,6 +641,17 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
     );
   }
 
+  // İçerik araması: isim, konum ve ülkede geçsin
+  const q = search.trim().toLocaleLowerCase("tr");
+  const visibleItems = q
+    ? items.filter(
+        (it) =>
+          it.name.toLocaleLowerCase("tr").includes(q) ||
+          (it.location ?? "").toLocaleLowerCase("tr").includes(q) ||
+          (it.country ?? "").toLocaleLowerCase("tr").includes(q)
+      )
+    : items;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
@@ -434,26 +664,85 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
           <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle}>Yönetim</Text>
-        <Pressable
-          testID="admin-add"
-          style={styles.headerIconBtn}
-          onPress={() => setEditing({ ...EMPTY_FORM })}
-          hitSlop={8}
-        >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </Pressable>
+        {tab === "content" ? (
+          <Pressable
+            testID="admin-add"
+            style={styles.headerIconBtn}
+            onPress={() => setEditing({ ...EMPTY_FORM })}
+            hitSlop={8}
+          >
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </Pressable>
+        ) : (
+          <View style={styles.headerIconBtn} />
+        )}
       </View>
 
-      {loading ? (
+      {/* Sekmeler: Ziyaretçiler / İçerik / Konumlar */}
+      <View style={styles.tabsRow}>
+        <TabBtn
+          label="Ziyaretçiler"
+          icon="people-outline"
+          active={tab === "visitors"}
+          onPress={() => setTab("visitors")}
+        />
+        <TabBtn
+          label="İçerik"
+          icon="business-outline"
+          active={tab === "content"}
+          onPress={() => setTab("content")}
+        />
+        <TabBtn
+          label="Konumlar"
+          icon="location-outline"
+          active={tab === "locations"}
+          onPress={() => setTab("locations")}
+        />
+      </View>
+
+      {tab === "visitors" ? (
+        <ScrollView contentContainerStyle={styles.listContent}>
+          <OnlineGuides />
+        </ScrollView>
+      ) : tab === "locations" ? (
+        <LocationsManager />
+      ) : loading ? (
         <View style={styles.center} testID="admin-loading">
           <ActivityIndicator size="large" color={COLORS.brandPrimary} />
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={visibleItems}
           keyExtractor={(it) => it.id}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={<OnlineGuides />}
+          ListHeaderComponent={
+            <View style={styles.adminSearchWrap}>
+              <Ionicons name="search" size={16} color={COLORS.onSurfaceMuted} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Otel veya restoran ara…"
+                placeholderTextColor={COLORS.onSurfaceMuted}
+                style={styles.adminSearchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {search.length > 0 && (
+                <Pressable onPress={() => setSearch("")} hitSlop={8}>
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color={COLORS.onSurfaceMuted}
+                  />
+                </Pressable>
+              )}
+            </View>
+          }
+          ListEmptyComponent={
+            <Text style={styles.locEmpty}>
+              {q ? `"${search}" için sonuç yok.` : "Henüz kayıt yok."}
+            </Text>
+          }
           renderItem={({ item }) => (
             <View style={styles.row} testID={`admin-row-${item.id}`}>
               <Image
@@ -777,6 +1066,143 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   listContent: { padding: 16, paddingBottom: 32 },
+  // ── Sekmeler ──
+  tabsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: COLORS.brandTertiary,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.brandPrimary,
+  },
+  tabBtnText: {
+    fontSize: 12.5,
+    fontWeight: "800",
+    color: COLORS.brandPrimary,
+  },
+  tabBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  // ── İçerik araması ──
+  adminSearchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  adminSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.onSurface,
+    padding: 0,
+  },
+  // ── Konumlar ──
+  locCard: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  locCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+    marginBottom: 10,
+  },
+  locInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13.5,
+    color: COLORS.onSurface,
+    marginBottom: 8,
+  },
+  locInputMono: {
+    fontSize: 12,
+    minHeight: 44,
+  },
+  locParse: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  locAddBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: COLORS.brandPrimary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 2,
+  },
+  locAddText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  locHint: {
+    fontSize: 11.5,
+    color: COLORS.onSurfaceMuted,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  locEmpty: {
+    fontSize: 13,
+    color: COLORS.onSurfaceMuted,
+    textAlign: "center",
+    marginTop: 16,
+  },
+  locRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  locDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#FF6600",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  locName: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+  },
+  locMeta: {
+    fontSize: 11.5,
+    color: COLORS.onSurfaceMuted,
+    marginTop: 1,
+  },
   // ── Çevrimiçi rehberler ──
   presenceCard: {
     backgroundColor: COLORS.surfaceSecondary,

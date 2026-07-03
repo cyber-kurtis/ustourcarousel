@@ -520,7 +520,13 @@ export default function Index() {
             testID="search-input"
             value={query}
             onChangeText={setQuery}
-            placeholder="Otel veya konum ara..."
+            placeholder={
+              mode === "restaurant"
+                ? "Restoran veya şehir ara..."
+                : mode === "favorites"
+                ? "Favorilerinde ara..."
+                : "Otel veya şehir ara..."
+            }
             placeholderTextColor={COLORS.onSurfaceMuted}
             style={styles.searchInput}
             returnKeyType="search"
