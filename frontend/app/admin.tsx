@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { optimizedImage } from "@/src/lib/img";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const ADMIN_PIN = "ustour"; // simple gate; change as needed
@@ -746,7 +747,11 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
           renderItem={({ item }) => (
             <View style={styles.row} testID={`admin-row-${item.id}`}>
               <Image
-                source={item.image_url ? { uri: item.image_url } : undefined}
+                source={
+                  item.image_url
+                    ? { uri: optimizedImage(item.image_url, 160, 50) }
+                    : undefined
+                }
                 style={styles.rowImage}
                 contentFit="cover"
               />

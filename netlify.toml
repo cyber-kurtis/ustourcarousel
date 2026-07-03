@@ -9,6 +9,11 @@
 [functions]
   directory = "netlify/functions"
 
+# Netlify Image CDN: dış sitelerdeki otel/restoran görsellerini
+# küçültüp sıkıştırarak servis et (/.netlify/images?url=...&w=...&q=...)
+[images]
+  remote_images = ["https://.*", "http://.*"]
+
 # Currency rates function (must come before the /api/* catch-all below)
 [[redirects]]
   from = "/api/rates"

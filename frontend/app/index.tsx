@@ -22,6 +22,7 @@ import { GuideCallout } from "@/src/components/guide-callout";
 import { AddToHome } from "@/src/components/add-to-home";
 import { BorderLiveButton } from "@/src/components/border-live-button";
 import { PresenceBeacon } from "@/src/components/presence-beacon";
+import { optimizedImage } from "@/src/lib/img";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -369,7 +370,7 @@ export default function Index() {
       >
         <View>
           <Image
-            source={{ uri: item.image_url }}
+            source={{ uri: optimizedImage(item.image_url, 640, 55) }}
             style={styles.cardImage}
             contentFit="cover"
             transition={200}

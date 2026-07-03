@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useFavorites } from "@/src/hooks/use-favorites";
+import { optimizedImage } from "@/src/lib/img";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -136,7 +137,7 @@ export default function HotelDetail() {
       >
         <View style={styles.heroWrapper}>
           <Image
-            source={{ uri: hotel.image_url }}
+            source={{ uri: optimizedImage(hotel.image_url, 960, 65) }}
             style={styles.hero}
             contentFit="cover"
             transition={200}
