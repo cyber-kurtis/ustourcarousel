@@ -95,7 +95,7 @@
       { name: "Priştine — Tereziya Bulvarı", lat: 42.6629, lng: 21.1655, desc: "Merkezi bulvar başlangıcı" }
     ];
 
-    // Panelden eklenen pinler turuncu — sabit tur noktalarından ayrılsın
+    // Oteller ve panelden eklenen pinler turuncu — sabit tur noktalarından ayrılsın
     var adminPinIcon = L.divIcon({
       html: '<div style="background:#FF6600;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>',
       className: '',
@@ -124,6 +124,18 @@
     fetch('/api/locations', { cache: 'no-store' })
       .then(function(r) { return r.json(); })
       .then(function(d) { (d.locations || []).forEach(function(loc) { addPin(loc, adminPinIcon); }); })
+      .catch(function() {});
+
+    // Tur otelleri — koordinatı olan tüm oteller turuncu pin ile
+    fetch('/api/hotels', { cache: 'no-store' })
+      .then(function(r) { return r.json(); })
+      .then(function(rows) {
+        (Array.isArray(rows) ? rows : []).forEach(function(h) {
+          if (h.kind !== 'hotel') return;
+          if (!isFinite(h.lat) || !isFinite(h.lng)) return;
+          addPin({ name: 'Hotel ' + h.name, lat: h.lat, lng: h.lng, desc: h.location || '' }, adminPinIcon);
+        });
+      })
       .catch(function() {});
 
     function askNavigate(lat, lng, name) {

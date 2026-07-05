@@ -3,7 +3,7 @@
 
 const FIELDS = [
   "name", "image_url", "location", "phone", "email",
-  "website", "country", "kind", "description",
+  "website", "country", "kind", "description", "lat", "lng",
 ];
 
 const CORS = {
