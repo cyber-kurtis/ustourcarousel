@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useFavorites } from "@/src/hooks/use-favorites";
 import { optimizedImage } from "@/src/lib/img";
+import { ImageViewer } from "@/src/components/ImageViewer";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -50,6 +51,7 @@ export default function HotelDetail() {
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const { isFavorite, toggle } = useFavorites();
 
   useEffect(() => {
@@ -135,13 +137,21 @@ export default function HotelDetail() {
         showsVerticalScrollIndicator={false}
         testID="detail-scroll"
       >
-        <View style={styles.heroWrapper}>
+        <Pressable
+          style={styles.heroWrapper}
+          onPress={() => setViewerOpen(true)}
+          testID="detail-image-button"
+        >
           <Image
             source={{ uri: optimizedImage(hotel.image_url, 960, 65) }}
             style={styles.hero}
             contentFit="cover"
             transition={200}
           />
+          <View style={styles.zoomHint}>
+            <Ionicons name="search" size={20} color="#FFFFFF" />
+            <Text style={styles.zoomHintText}>Yakınlaştır</Text>
+          </View>
           <LinearGradient
             colors={["rgba(0,0,0,0.55)", "rgba(0,0,0,0)"]}
             style={styles.heroScrim}
@@ -168,7 +178,7 @@ export default function HotelDetail() {
               />
             </Pressable>
           </SafeAreaView>
-        </View>
+        </Pressable>
 
         <View style={styles.body}>
           <Text style={styles.title} testID="hotel-detail-name">
@@ -216,6 +226,13 @@ export default function HotelDetail() {
           </View>
         </View>
       </ScrollView>
+      {viewerOpen && (
+        <ImageViewer
+          imageUri={hotel.image_url}
+          title={hotel.name}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -366,6 +383,23 @@ const styles = StyleSheet.create({
   retryText: {
     color: "#FFFFFF",
     fontSize: 15,
+    fontWeight: "600",
+  },
+  zoomHint: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  zoomHintText: {
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "600",
   },
 });

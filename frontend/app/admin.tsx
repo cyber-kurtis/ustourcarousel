@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { optimizedImage } from "@/src/lib/img";
+import { ImageViewer } from "@/src/components/ImageViewer";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const ADMIN_PIN = "ustour"; // simple gate; change as needed
@@ -806,6 +807,7 @@ function EditScreen({
   saving: boolean;
 }) {
   const [form, setForm] = useState<Hotel>(initial);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const set = (k: keyof Hotel, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const pickImage = async () => {
@@ -865,14 +867,32 @@ function EditScreen({
         <Pressable
           testID="edit-image-picker"
           style={styles.imagePicker}
-          onPress={pickImage}
+          onPress={form.image_url ? undefined : pickImage}
         >
           {form.image_url ? (
-            <Image
-              source={{ uri: form.image_url }}
-              style={styles.imagePreview}
-              contentFit="cover"
-            />
+            <Pressable
+              style={styles.imagePreviewWrapper}
+              onPress={() => setViewerOpen(true)}
+              testID="edit-image-zoom"
+            >
+              <Image
+                source={{ uri: form.image_url }}
+                style={styles.imagePreview}
+                contentFit="cover"
+              />
+              <View style={styles.zoomOverlay}>
+                <Ionicons name="search" size={20} color="#FFFFFF" />
+              </View>
+              <Pressable
+                style={styles.changeOverlay}
+                onPress={pickImage}
+                testID="edit-image-change"
+                hitSlop={6}
+              >
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+                <Text style={styles.changeOverlayText}>Değiştir</Text>
+              </Pressable>
+            </Pressable>
           ) : (
             <View style={styles.imageEmpty}>
               <Ionicons
@@ -971,6 +991,13 @@ function EditScreen({
           multiline
         />
       </KeyboardAwareScrollView>
+      {viewerOpen && form.image_url && (
+        <ImageViewer
+          imageUri={form.image_url}
+          title={form.name || "Görsel"}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1372,6 +1399,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   imagePreview: { width: "100%", height: "100%" },
+  imagePreviewWrapper: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  zoomOverlay: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  changeOverlay: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 18,
+  },
+  changeOverlayText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   imageEmpty: {
     flex: 1,
     alignItems: "center",
