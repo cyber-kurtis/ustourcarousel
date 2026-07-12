@@ -20,6 +20,13 @@
 [images]
   remote_images = ["https://.*", "http://.*"]
 
+# netlify.app -> kurtiscode.com kalici yonlendirme
+[[redirects]]
+  from = "https://ustnaviguide.netlify.app/*"
+  to = "https://ustnaviguide.kurtiscode.com/:splat"
+  status = 301
+  force = true
+
 # Currency rates function (must come before the /api/* catch-all below)
 [[redirects]]
   from = "/api/rates"
