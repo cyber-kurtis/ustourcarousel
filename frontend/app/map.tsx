@@ -90,7 +90,7 @@ const MAP_HTML = `<!DOCTYPE html>
     }
     locs.forEach(function(loc){addPin(loc,pinIcon);});
     // Yönetim panelinden eklenen konumlar (canlı)
-    fetch('https://ustnaviguide.netlify.app/api/locations')
+    fetch('https://ustnaviguide.kurtiscode.com/api/locations')
       .then(function(r){return r.json();})
       .then(function(d){(d.locations||[]).forEach(function(loc){addPin(loc,adminPinIcon);});})
       .catch(function(){});

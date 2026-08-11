@@ -16,7 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 // {id, name, device}. Yönetim paneli bu veriden kimin çevrimiçi
 // olduğunu görür. İsim ilk açılışta bir kez sorulur (atlanabilir).
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
+
 const KEY_ID = "naviguide_device_id";
 const KEY_NAME = "naviguide_guide_name";
 const KEY_NAME_SKIP = "naviguide_guide_name_skip";
@@ -70,7 +71,7 @@ function deviceLabel(): string {
 // Kalp atışı gönder; sunucu bu cihaz duraklatılmışsa blocked:true döner.
 async function sendHeartbeat(id: string, name: string): Promise<boolean> {
   try {
-    const res = await fetch(`${BACKEND_URL ?? ""}/api/presence`, {
+    const res = await fetch(`${API_BASE}/api/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, name, device: deviceLabel() }),

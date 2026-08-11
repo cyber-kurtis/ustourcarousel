@@ -6,8 +6,8 @@ export default function Root({ children }: PropsWithChildren) {
   const title = "NaviGuide — Rehberin Yol Arkadaşı";
   const description =
     "UStour rehberleri için tur asistanı: oteller, restoranlar, canlı sınır kapısı yoğunluğu, döviz çevirici ve hava durumu — hepsi tek uygulamada.";
-  const url = "https://ustnaviguide.netlify.app/";
-  const ogImage = "https://ustnaviguide.netlify.app/og-image.png";
+  const url = "https://ustnaviguide.kurtiscode.com/";
+  const ogImage = "https://ustnaviguide.kurtiscode.com/og-image.png";
 
   return (
     <html lang="tr" style={{ height: "100%" }}>

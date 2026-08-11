@@ -26,8 +26,7 @@ import { BorderLiveButton } from "@/src/components/border-live-button";
 import { PresenceBeacon } from "@/src/components/presence-beacon";
 import { optimizedImage } from "@/src/lib/img";
 import { APP_VERSION } from "@/src/lib/version";
-
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
 
 type Hotel = {
   id: string;
@@ -207,7 +206,7 @@ export default function Index() {
     try {
       setRatesLoading(true);
       setRatesError(null);
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/rates`);
+      const res = await fetch(`${API_BASE}/api/rates`);
       if (!res.ok) throw new Error("Kurlar alınamadı");
       const data = await res.json();
       if (!data.rates) throw new Error("Kurlar alınamadı");
@@ -277,7 +276,7 @@ export default function Index() {
     try {
       setError(null);
       // cache: no-store — iPhone/PWA tarayıcısı eski listeyi göstermesin
-      const res = await fetch(`${BACKEND_URL}/api/hotels`, {
+      const res = await fetch(`${API_BASE}/api/hotels`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Sunucu hatası");

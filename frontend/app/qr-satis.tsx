@@ -13,8 +13,7 @@ import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
 
 // ATM ekranında gösterilecek QR: frontend/public/qr-ekstra-tur.png
 // (Garanti ATM'nin okuyacağı, hesaba para yatırma karekodu.)
@@ -63,7 +62,7 @@ export default function QrSatis() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/rates`);
+      const res = await fetch(`${API_BASE}/api/rates`);
       if (!res.ok) throw new Error("Kur alınamadı");
       const data = await res.json();
       if (!data.eurTry?.selling) throw new Error("Kur alınamadı");

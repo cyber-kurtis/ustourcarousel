@@ -19,8 +19,8 @@ import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { optimizedImage } from "@/src/lib/img";
 import { ImageViewer } from "@/src/components/ImageViewer";
+import { API_BASE } from "@/src/lib/api";
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const ADMIN_PIN = "ustour"; // simple gate; change as needed
 
 // Hatalar sessiz kalmasın: web'de alert, native'de Alert.alert
@@ -165,7 +165,7 @@ function OnlineGuides() {
 
   const loadGuides = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/presence`);
+      const res = await fetch(`${API_BASE}/api/presence`);
       const data = await res.json();
       setGuides(data.guides ?? []);
       setNow(data.now ?? Date.now());
@@ -186,7 +186,7 @@ function OnlineGuides() {
   ) => {
     setBusy(true);
     try {
-      await fetch(`${BACKEND_URL ?? ""}/api/presence`, {
+      await fetch(`${API_BASE}/api/presence`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: ADMIN_PIN, id, action, name }),
@@ -363,7 +363,7 @@ function LocationsManager() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+      const res = await fetch(`${API_BASE}/api/locations`, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -393,7 +393,7 @@ function LocationsManager() {
     }
     setBusy(true);
     try {
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+      const res = await fetch(`${API_BASE}/api/locations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -424,7 +424,7 @@ function LocationsManager() {
   const removeLocation = async (id: string) => {
     setBusy(true);
     try {
-      await fetch(`${BACKEND_URL ?? ""}/api/locations`, {
+      await fetch(`${API_BASE}/api/locations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: ADMIN_PIN, action: "remove", id }),
@@ -562,7 +562,7 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/hotels`, {
+      const res = await fetch(`${API_BASE}/api/hotels`, {
         cache: "no-store",
       });
       const data: Hotel[] = await res.json();
@@ -580,7 +580,7 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/hotels/${id}`, {
+      const res = await fetch(`${API_BASE}/api/hotels/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -608,12 +608,12 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
     };
     try {
       const res = form.id
-        ? await fetch(`${BACKEND_URL}/api/hotels/${form.id}`, {
+        ? await fetch(`${API_BASE}/api/hotels/${form.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           })
-        : await fetch(`${BACKEND_URL}/api/hotels`, {
+        : await fetch(`${API_BASE}/api/hotels`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),

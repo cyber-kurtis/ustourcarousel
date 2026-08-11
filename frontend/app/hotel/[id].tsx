@@ -19,8 +19,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFavorites } from "@/src/hooks/use-favorites";
 import { optimizedImage } from "@/src/lib/img";
 import { ImageViewer } from "@/src/components/ImageViewer";
-
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
 
 type Hotel = {
   id: string;
@@ -57,7 +56,7 @@ export default function HotelDetail() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/hotels/${id}`);
+        const res = await fetch(`${API_BASE}/api/hotels/${id}`);
         if (!res.ok) throw new Error("Otel bulunamadı");
         const data: Hotel = await res.json();
         setHotel(data);

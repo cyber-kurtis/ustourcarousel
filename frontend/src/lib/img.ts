@@ -3,7 +3,7 @@
 // onları Netlify'ın görsel servisinden küçültülmüş/sıkıştırılmış (WebP/AVIF)
 // olarak geçirir. Telefonda liste kaydırması belirgin hızlanır.
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
 
 export function optimizedImage(
   url?: string | null,
@@ -13,7 +13,7 @@ export function optimizedImage(
   if (!url) return undefined;
   // Panelden yüklenen base64 (data:) görseller proxy'lenemez — olduğu gibi
   if (url.startsWith("data:")) return url;
-  return `${BACKEND_URL ?? ""}/.netlify/images?url=${encodeURIComponent(
+  return `${API_BASE}/.netlify/images?url=${encodeURIComponent(
     url
   )}&w=${width}&q=${quality}&fit=cover`;
 }

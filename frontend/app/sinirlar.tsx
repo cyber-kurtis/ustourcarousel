@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 // Turda kullanılan sınır kapılarının çift yönlü bekleme süreleri.
 // Veri: /api/borders (Netlify Function → borderalarm.com, 10 dk önbellek).
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { API_BASE } from "@/src/lib/api";
 
 const COLORS = {
   surface: "#F2F2F7",
@@ -89,7 +89,7 @@ export default function Sinirlar() {
   const fetchBorders = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch(`${BACKEND_URL ?? ""}/api/borders`);
+      const res = await fetch(`${API_BASE}/api/borders`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCrossings(data.crossings ?? []);

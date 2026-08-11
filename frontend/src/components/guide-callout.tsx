@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 // ── ŞEF REHBER SÜLEYMAN ──────────────────────────────────────────
 // Web: public/suleyman-motion.mp4 (94 KB, video-avatar)
 // Native: assets/images/suleyman-anim.webp (animasyonlu WebP, expo-image oynatır)
-// Paylaşılabilir GIF: https://ustnaviguide.netlify.app/suleyman.gif
+// Paylaşılabilir GIF: https://ustnaviguide.kurtiscode.com/suleyman.gif
 const SULEYMAN_ANIM = require("../../assets/images/suleyman-anim.webp");
 const SULEYMAN_MOTION = "/suleyman-motion.mp4";
 
