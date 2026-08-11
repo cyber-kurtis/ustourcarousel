@@ -808,8 +808,12 @@ function EditScreen({
 }) {
   const [form, setForm] = useState<Hotel>(initial);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const set = (k: keyof Hotel, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Seçilen görsel Supabase Storage'a yüklenir ve image_url'e URL yazılır.
+  // Base64'ü satıra gömmüyoruz: liste yanıtını şişiriyor, görsel küçültme
+  // devreye giremiyor ve Tur Kiti PDF'i o görselleri basamıyor.
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
@@ -820,9 +824,23 @@ function EditScreen({
       quality: 0.7,
       base64: true,
     });
-    if (!result.canceled && result.assets[0]?.base64) {
-      const mime = result.assets[0].mimeType ?? "image/jpeg";
-      set("image_url", `data:${mime};base64,${result.assets[0].base64}`);
+    if (result.canceled || !result.assets[0]?.base64) return;
+
+    const mime = result.assets[0].mimeType ?? "image/jpeg";
+    setUploading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: mime, data: result.assets[0].base64 }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out.url) throw new Error(out.detail || "Görsel yüklenemedi");
+      set("image_url", out.url);
+    } catch (e: any) {
+      Alert.alert("Görsel yüklenemedi", e?.message ?? "Bilinmeyen hata");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -867,9 +885,14 @@ function EditScreen({
         <Pressable
           testID="edit-image-picker"
           style={styles.imagePicker}
-          onPress={form.image_url ? undefined : pickImage}
+          onPress={form.image_url || uploading ? undefined : pickImage}
         >
-          {form.image_url ? (
+          {uploading ? (
+            <View style={styles.imageEmpty}>
+              <ActivityIndicator color={COLORS.brandPrimary} />
+              <Text style={styles.imageEmptyText}>Görsel yükleniyor…</Text>
+            </View>
+          ) : form.image_url ? (
             <Pressable
               style={styles.imagePreviewWrapper}
               onPress={() => setViewerOpen(true)}
