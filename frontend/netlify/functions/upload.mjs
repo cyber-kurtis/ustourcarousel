@@ -9,13 +9,15 @@
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_KEY (Netlify proje değişkenleri).
 
+import { yetkiDenetle } from "../lib/auth.mjs";
+
 const BUCKET = "hotel-images";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-key",
 };
 
 const json = (data, status = 200) =>
@@ -35,6 +37,10 @@ const EXT = {
 export default async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ detail: "Yöntem desteklenmiyor" }, 405);
+
+  // Yükleme depolama alanına yazar — yalnızca yönetici.
+  const yetki = yetkiDenetle(req);
+  if (!yetki.ok) return json({ detail: yetki.detail }, yetki.status);
 
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {

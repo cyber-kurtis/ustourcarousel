@@ -6,10 +6,12 @@ const FIELDS = [
   "website", "country", "kind", "description", "lat", "lng",
 ];
 
+import { yetkiDenetle } from "../lib/auth.mjs";
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-key",
 };
 
 const json = (data, status = 200) =>
@@ -42,6 +44,12 @@ export default async (req) => {
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     return json({ detail: "Supabase yapılandırması eksik (SUPABASE_URL / SUPABASE_SERVICE_KEY)" }, 500);
+  }
+
+  // Okuma herkese açık (uygulama listeyi çekebilmeli), yazma yönetici anahtarı ister.
+  if (req.method !== "GET") {
+    const yetki = yetkiDenetle(req);
+    if (!yetki.ok) return json({ detail: yetki.detail }, yetki.status);
   }
 
   const rest = `${process.env.SUPABASE_URL}/rest/v1/hotels`;

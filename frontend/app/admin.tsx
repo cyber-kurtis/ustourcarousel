@@ -20,8 +20,13 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { optimizedImage } from "@/src/lib/img";
 import { ImageViewer } from "@/src/components/ImageViewer";
 import { API_BASE } from "@/src/lib/api";
-
-const ADMIN_PIN = "ustour"; // simple gate; change as needed
+import {
+  adminHeaders,
+  clearAdminKey,
+  loadAdminKey,
+  setAdminKey,
+  verifyAdminKey,
+} from "@/src/lib/admin-key";
 
 // Hatalar sessiz kalmasın: web'de alert, native'de Alert.alert
 function notify(msg: string) {
@@ -87,6 +92,41 @@ export default function Admin() {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [gateError, setGateError] = useState("");
+
+  // Daha önce girilmiş anahtar varsa doğrudan içeri al (her açılışta sormayalım).
+  useEffect(() => {
+    (async () => {
+      const saved = await loadAdminKey();
+      if (!saved) return;
+      const ok = await verifyAdminKey(saved);
+      if (ok) setAuthed(true);
+      else await clearAdminKey();
+    })();
+  }, []);
+
+  // Şifre sunucuda doğrulanır — uygulama paketinde şifre bulunmaz.
+  const submitPin = async () => {
+    const girilen = pin.trim();
+    if (!girilen || checking) return;
+    setChecking(true);
+    setGateError("");
+    try {
+      if (await verifyAdminKey(girilen)) {
+        await setAdminKey(girilen);
+        setAuthed(true);
+        setPin("");
+      } else {
+        setGateError("Şifre hatalı.");
+        setPin("");
+      }
+    } catch {
+      setGateError("Sunucuya ulaşılamadı. Bağlantını kontrol et.");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   if (!authed) {
     return (
@@ -113,16 +153,20 @@ export default function Admin() {
             style={styles.gateInput}
             autoCapitalize="none"
             autoCorrect={false}
+            onSubmitEditing={submitPin}
           />
+          {gateError ? <Text style={styles.gateError}>{gateError}</Text> : null}
           <Pressable
             testID="admin-pin-submit"
             style={styles.gateBtn}
-            onPress={() => {
-              if (pin === ADMIN_PIN) setAuthed(true);
-              else setPin("");
-            }}
+            onPress={submitPin}
+            disabled={checking}
           >
-            <Text style={styles.gateBtnText}>Giriş Yap</Text>
+            {checking ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.gateBtnText}>Giriş Yap</Text>
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -188,8 +232,8 @@ function OnlineGuides() {
     try {
       await fetch(`${API_BASE}/api/presence`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: ADMIN_PIN, id, action, name }),
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ id, action, name }),
       });
       await loadGuides();
     } finally {
@@ -395,9 +439,8 @@ function LocationsManager() {
     try {
       const res = await fetch(`${API_BASE}/api/locations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          pin: ADMIN_PIN,
           action: "add",
           name: name.trim(),
           lat: parsed.lat,
@@ -426,8 +469,8 @@ function LocationsManager() {
     try {
       await fetch(`${API_BASE}/api/locations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: ADMIN_PIN, action: "remove", id }),
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ action: "remove", id }),
       });
       load();
     } finally {
@@ -582,6 +625,7 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
     try {
       const res = await fetch(`${API_BASE}/api/hotels/${id}`, {
         method: "DELETE",
+        headers: adminHeaders(),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -610,12 +654,12 @@ function AdminPanel({ onExit }: { onExit: () => void }) {
       const res = form.id
         ? await fetch(`${API_BASE}/api/hotels/${form.id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: adminHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(payload),
           })
         : await fetch(`${API_BASE}/api/hotels`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: adminHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(payload),
           });
       if (!res.ok) {
@@ -831,7 +875,7 @@ function EditScreen({
     try {
       const res = await fetch(`${API_BASE}/api/upload`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ contentType: mime, data: result.assets[0].base64 }),
       });
       const out = await res.json().catch(() => ({}));
@@ -1536,6 +1580,12 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceMuted,
     marginTop: 6,
     marginBottom: 24,
+  },
+  gateError: {
+    fontSize: 13,
+    color: COLORS.danger,
+    marginTop: 10,
+    textAlign: "center",
   },
   gateInput: {
     width: "100%",

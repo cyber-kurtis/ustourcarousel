@@ -3,19 +3,18 @@
 // POST: uygulama ~60 sn'de bir {id, name, device} yollar (kalp atışı).
 //       Yanıtta {blocked} döner; true ise istemci kilit ekranı gösterir.
 // GET:  yönetim paneli listeyi çeker (isim, cihaz, son görülme, durum).
-// PUT:  yönetici işlemleri {pin, id, action: pause|resume|rename|remove}.
+// PUT:  yönetici işlemleri {id, action: pause|resume|rename|remove}.
 //       Yönetici isim verirse (rename) istemcinin yolladığı isim artık
 //       üzerine yazamaz (name_locked).
+//       Yazma işlemleri x-admin-key başlığı ister (bkz. ../lib/auth.mjs).
 
 import { getStore } from "@netlify/blobs";
-
-// admin.tsx'teki panel şifresiyle aynı basit kapı.
-const ADMIN_PIN = "ustour";
+import { yetkiDenetle } from "../lib/auth.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-key",
 };
 
 const json = (data, status = 200) =>
@@ -74,7 +73,8 @@ export default async (req) => {
     } catch {
       return json({ detail: "Geçersiz istek" }, 400);
     }
-    if (body?.pin !== ADMIN_PIN) return json({ detail: "Yetkisiz" }, 403);
+    const yetki = yetkiDenetle(req, body);
+    if (!yetki.ok) return json({ detail: yetki.detail }, yetki.status);
 
     const id = String(body?.id ?? "").slice(0, 64);
     const action = body?.action;

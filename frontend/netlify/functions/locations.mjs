@@ -1,18 +1,17 @@
 // Harita konumları API (yönetim panelinden pin ekle/sil).
 // Depo: Netlify Blobs "locations" store'u (strong: yazınca hemen görünür).
 // GET:  {locations:[{id,name,lat,lng,desc}]} — harita sayfaları çeker.
-// POST: {pin, action:"add", name, lat, lng, desc?} → yeni pin
-//       {pin, action:"remove", id} → pin sil
-// pin = admin.tsx'teki panel şifresi.
+// POST: {action:"add", name, lat, lng, desc?} → yeni pin
+//       {action:"remove", id} → pin sil
+// Yazma işlemleri x-admin-key başlığı ister (bkz. ../lib/auth.mjs).
 
 import { getStore } from "@netlify/blobs";
-
-const ADMIN_PIN = "ustour";
+import { yetkiDenetle } from "../lib/auth.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-key",
 };
 
 const json = (data, status = 200) =>
@@ -52,7 +51,8 @@ export default async (req) => {
     } catch {
       return json({ detail: "Geçersiz istek" }, 400);
     }
-    if (body?.pin !== ADMIN_PIN) return json({ detail: "Yetkisiz" }, 403);
+    const yetki = yetkiDenetle(req, body);
+    if (!yetki.ok) return json({ detail: yetki.detail }, yetki.status);
 
     if (body.action === "remove") {
       const id = String(body?.id ?? "").slice(0, 64);
